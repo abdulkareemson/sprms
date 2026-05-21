@@ -1,0 +1,405 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  PHARMACIST
+  PATIENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  UNKNOWN
+}
+
+enum RecordType {
+  CONSULTATION
+  LAB_RESULT
+  NURSING_NOTE
+  IMAGING
+  PRESCRIPTION
+  DISCHARGE_SUMMARY
+  REFERRAL
+  VACCINATION
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum DispenseStatus {
+  PENDING
+  DISPENSED
+  PARTIALLY_DISPENSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXPORT
+  UPLOAD
+  PASSWORD_RESET
+  ACCOUNT_LOCKED
+  EMAIL_VERIFIED
+}
+
+// ─────────────────────────────────────────────
+// MODEL 1: User
+// ─────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  password            String
+  role                Role
+  isActive            Boolean   @default(true)
+  isEmailVerified     Boolean   @default(false)
+  mustChangePassword  Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  staffProfile        StaffProfile?
+  patient             Patient?
+  passwordResets      PasswordReset[]
+  emailVerifications  EmailVerification[]
+  auditLogs           AuditLog[]
+  createdRecords      MedicalRecord[]     @relation("RecordCreatedBy")
+  appointments        Appointment[]       @relation("DoctorAppointments")
+  createdAppointments Appointment[]       @relation("AppointmentCreatedBy")
+  prescriptions       Prescription[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 2: StaffProfile
+// ─────────────────────────────────────────────
+
+model StaffProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  firstName      String
+  lastName       String
+  phone          String?
+  department     String?
+  qualification  String?
+  licenseNumber  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("staff_profiles")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 3: PasswordReset
+// ─────────────────────────────────────────────
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 4: EmailVerification
+// ─────────────────────────────────────────────
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verifications")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 5: Patient
+// ─────────────────────────────────────────────
+
+model Patient {
+  id                 String      @id @default(cuid())
+  patientNumber      String      @unique
+  userId             String?     @unique
+  firstName          String
+  lastName           String
+  dateOfBirth        DateTime
+  gender             Gender
+  bloodGroup         BloodGroup  @default(UNKNOWN)
+  phone              String?
+  email              String?
+  address            String?
+  city               String?
+  state              String?
+  nationality        String      @default("Nigerian")
+
+  // Emergency contact
+  emergencyName      String?
+  emergencyPhone     String?
+  emergencyRelation  String?
+
+  // Insurance
+  insuranceProvider  String?
+  insuranceNumber    String?
+
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  // Relations
+  user               User?       @relation(fields: [userId], references: [id])
+  medicalRecords     MedicalRecord[]
+  vitalSigns         VitalSign[]
+  prescriptions      Prescription[]
+  appointments       Appointment[]
+  invoices           Invoice[]
+  documents          PatientDocument[]
+
+  @@map("patients")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 6: MedicalRecord
+// ─────────────────────────────────────────────
+
+model MedicalRecord {
+  id            String      @id @default(cuid())
+  recordNumber  String      @unique
+  patientId     String
+  createdById   String
+  recordType    RecordType
+  title         String
+
+  // Encrypted fields (stored as encrypted strings)
+  diagnosis     String?     // encrypted
+  treatment     String?     // encrypted
+  notes         String?     // encrypted
+
+  icdCode       String?
+  isConfidential Boolean    @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation("RecordCreatedBy", fields: [createdById], references: [id])
+  vitalSigns    VitalSign[]
+  prescriptions Prescription[]
+  documents     PatientDocument[]
+
+  @@map("medical_records")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 7: VitalSign
+// ─────────────────────────────────────────────
+
+model VitalSign {
+  id                  String    @id @default(cuid())
+  patientId           String
+  recordId            String?
+  temperature         Float?    // Celsius
+  systolicBP          Int?      // mmHg
+  diastolicBP         Int?      // mmHg
+  heartRate           Int?      // bpm
+  respiratoryRate     Int?      // breaths/min
+  oxygenSaturation    Float?    // percentage
+  weight              Float?    // kg
+  height              Float?    // cm
+  bmi                 Float?    // auto-calculated
+  recordedAt          DateTime  @default(now())
+  notes               String?
+  createdAt           DateTime  @default(now())
+
+  // Relations
+  patient             Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicalRecord       MedicalRecord? @relation(fields: [recordId], references: [id])
+
+  @@map("vital_signs")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 8: Prescription
+// ─────────────────────────────────────────────
+
+model Prescription {
+  id               String         @id @default(cuid())
+  patientId        String
+  recordId         String?
+  prescribedById   String
+  medicationName   String
+  dosage           String
+  frequency        String
+  duration         String
+  route            String
+  instructions     String?        // encrypted
+  dispenseStatus   DispenseStatus @default(PENDING)
+  dispensedAt      DateTime?
+  dispensingNotes  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  patient          Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicalRecord    MedicalRecord? @relation(fields: [recordId], references: [id])
+  prescribedBy     User           @relation(fields: [prescribedById], references: [id])
+
+  @@map("prescriptions")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 9: Appointment
+// ─────────────────────────────────────────────
+
+model Appointment {
+  id               String            @id @default(cuid())
+  patientId        String
+  doctorId         String
+  createdById      String
+  scheduledAt      DateTime
+  durationMinutes  Int               @default(30)
+  status           AppointmentStatus @default(SCHEDULED)
+  reason           String?
+  notes            String?
+  cancelReason     String?
+  reminderSent     Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor           User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  createdBy        User              @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  invoices         Invoice[]
+
+  @@map("appointments")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 10: Invoice
+// ─────────────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  patientId       String
+  appointmentId   String?
+  items           Json
+  totalAmount     Float
+  paymentStatus   PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  patient         Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment     Appointment?  @relation(fields: [appointmentId], references: [id])
+
+  @@map("invoices")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 11: AuditLog
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?
+  action      AuditAction
+  resource    String
+  resourceId  String?
+  description String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  user        User?       @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// MODEL 12: PatientDocument
+// ─────────────────────────────────────────────
+
+model PatientDocument {
+  id           String    @id @default(cuid())
+  patientId    String
+  recordId     String?
+  fileName     String
+  fileType     String
+  fileSize     Int
+  storagePath  String
+  uploadedById String
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  patient      Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicalRecord MedicalRecord? @relation(fields: [recordId], references: [id])
+
+  @@map("patient_documents")
+}
