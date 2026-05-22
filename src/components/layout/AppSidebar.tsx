@@ -1,10 +1,10 @@
-//src/components/layout/AppSidebar.tsx
+// src/components/layout/AppSidebar.tsx
 
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import {
@@ -18,7 +18,8 @@ import {
   Shield,
   Settings,
   ClipboardList,
-  UserCircle,
+  LogOut,
+  ChevronRight,
 } from "lucide-react";
 
 interface NavItem {
@@ -61,7 +62,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: "Medical Records",
+    label: "My Records",
     href: "/my-records",
     icon: FileText,
     roles: [Role.PATIENT],
@@ -85,7 +86,7 @@ const navItems: NavItem[] = [
     roles: [Role.ADMIN, Role.DOCTOR],
   },
   {
-    label: "Staff Management",
+    label: "Staff",
     href: "/staff",
     icon: ClipboardList,
     roles: [Role.ADMIN],
@@ -97,9 +98,9 @@ const navItems: NavItem[] = [
     roles: [Role.ADMIN],
   },
   {
-    label: "My Profile",
+    label: "Settings",
     href: "/settings",
-    icon: UserCircle,
+    icon: Settings,
     roles: [
       Role.ADMIN,
       Role.DOCTOR,
@@ -108,12 +109,6 @@ const navItems: NavItem[] = [
       Role.PHARMACIST,
       Role.PATIENT,
     ],
-  },
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
-    roles: [Role.ADMIN],
   },
 ];
 
@@ -124,35 +119,44 @@ export function AppSidebar() {
 
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
 
-  // Remove duplicate Settings/My Profile for admin
-  const uniqueItems = visibleItems.filter(
-    (item, index, self) =>
-      index === self.findIndex((t) => t.href === item.href),
-  );
+  const name = session?.user?.name ?? "User";
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: "/login", redirect: true });
+  };
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-slate-900 min-h-screen">
+    <aside className="hidden lg:flex flex-col w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 min-h-screen">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-700">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+      <div className="flex items-center gap-3 px-6 py-5">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-white text-lg shadow-lg shadow-blue-500/20">
           🏥
         </div>
         <div>
-          <p className="text-white font-bold text-sm">SPRMS</p>
-          <p className="text-slate-400 text-xs">ABU Zaria</p>
+          <p className="text-white font-bold text-base tracking-wide">SPRMS</p>
+          <p className="text-slate-400 text-[11px]">ABU Zaria</p>
         </div>
       </div>
 
       {/* Role badge */}
-      <div className="px-6 py-3">
-        <span className="inline-block bg-blue-600/20 text-blue-400 text-xs font-medium px-2 py-1 rounded">
+      <div className="px-6 pb-4">
+        <span className="inline-flex items-center gap-1.5 bg-blue-500/10 text-blue-400 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-blue-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
           {userRole?.replace("_", " ")}
         </span>
       </div>
 
+      <div className="h-px bg-slate-700/50 mx-4" />
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        {uniqueItems.map((item) => {
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
@@ -160,27 +164,51 @@ export function AppSidebar() {
 
           return (
             <Link
-              key={item.href}
+              key={item.label + item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white",
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/20"
+                  : "text-slate-400 hover:bg-white/5 hover:text-white",
               )}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
+              <Icon
+                className={cn(
+                  "h-4 w-4 flex-shrink-0 transition-transform duration-200",
+                  isActive ? "" : "group-hover:scale-110",
+                )}
+              />
+              <span className="flex-1">{item.label}</span>
+              {isActive && <ChevronRight className="h-3 w-3 opacity-60" />}
             </Link>
           );
         })}
       </nav>
 
-      {/* User info */}
-      <div className="px-4 py-4 border-t border-slate-700">
-        <p className="text-slate-400 text-xs truncate">
-          {session?.user?.email}
-        </p>
+      <div className="h-px bg-slate-700/50 mx-4" />
+
+      {/* User section */}
+      <div className="p-4">
+        <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-white font-medium truncate">{name}</p>
+            <p className="text-[11px] text-slate-400 truncate">
+              {session?.user?.email}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-2 w-full mt-2 px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
       </div>
     </aside>
   );
