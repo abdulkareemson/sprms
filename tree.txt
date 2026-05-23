@@ -1,0 +1,221 @@
+SPRMS
+├── prisma
+│   ├── migrations
+│   │   ├── 20260521223446_init
+│   │   │   └── migration.sql
+│   │   ├── 20260523033024_add_appointment_fields
+│   │   │   └── migration.sql
+│   │   ├── 20260523033413_add_staff_specialization
+│   │   │   └── migration.sql
+│   │   ├── 20260523034204_sync_staff_specialization
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   ├── schema.prisma
+│   └── seed.ts
+├── src
+│   ├── app
+│   │   ├── (auth)
+│   │   │   ├── forgot-password
+│   │   │   │   └── page.tsx
+│   │   │   ├── login
+│   │   │   │   └── page.tsx
+│   │   │   ├── register
+│   │   │   │   └── page.tsx
+│   │   │   ├── reset-password
+│   │   │   │   └── page.tsx
+│   │   │   ├── verify-email
+│   │   │   └── layout.tsx
+│   │   ├── (dashboard)
+│   │   │   ├── appointments
+│   │   │   │   ├── new
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── audit-logs
+│   │   │   │   └── page.tsx
+│   │   │   ├── billing
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── new
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── dashboard
+│   │   │   │   └── page.tsx
+│   │   │   ├── my-records
+│   │   │   │   └── page.tsx
+│   │   │   ├── patients
+│   │   │   │   ├── [id]
+│   │   │   │   │   ├── records
+│   │   │   │   │   │   ├── new
+│   │   │   │   │   │   │   └── page.tsx
+│   │   │   │   │   │   └── page.tsx
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── new
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── pharmacy
+│   │   │   │   └── page.tsx
+│   │   │   ├── reports
+│   │   │   │   └── page.tsx
+│   │   │   ├── settings
+│   │   │   │   └── page.tsx
+│   │   │   ├── staff
+│   │   │   │   └── page.tsx
+│   │   │   └── layout.tsx
+│   │   ├── api
+│   │   │   ├── appointments
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── auth
+│   │   │   │   ├── [...nextauth]
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── change-password
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── forgot-password
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── register
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── reset-password
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── verify-email
+│   │   │   │       └── route.ts
+│   │   │   ├── documents
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── invoices
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── patients
+│   │   │   │   └── route.ts
+│   │   │   ├── prescriptions
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── records
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── staff
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── upload
+│   │   │   │   └── route.ts
+│   │   │   └── vitals
+│   │   │       └── route.ts
+│   │   ├── fonts
+│   │   │   ├── GeistMonoVF.woff
+│   │   │   └── GeistVF.woff
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components
+│   │   ├── appointments
+│   │   │   ├── AppointmentCalendar.tsx
+│   │   │   ├── AppointmentCard.tsx
+│   │   │   ├── AppointmentForm.tsx
+│   │   │   └── CancelDialog.tsx
+│   │   ├── auth
+│   │   │   └── RoleGuard.tsx
+│   │   ├── billing
+│   │   │   ├── InvoiceForm.tsx
+│   │   │   ├── InvoicePDF.tsx
+│   │   │   └── InvoiceTable.tsx
+│   │   ├── layout
+│   │   │   ├── AppHeader.tsx
+│   │   │   ├── AppSidebar.tsx
+│   │   │   └── MobileNav.tsx
+│   │   ├── pharmacy
+│   │   │   ├── DispenseDialog.tsx
+│   │   │   └── PrescriptionCard.tsx
+│   │   ├── records
+│   │   │   ├── RecordDetail.tsx
+│   │   │   ├── RecordTimeline.tsx
+│   │   │   └── VitalSignsForm.tsx
+│   │   ├── shared
+│   │   │   ├── ConfirmDialog.tsx
+│   │   │   ├── DataTable.tsx
+│   │   │   ├── DocumentList.tsx
+│   │   │   ├── EmptyState.tsx
+│   │   │   ├── FileUpload.tsx
+│   │   │   ├── PageHeader.tsx
+│   │   │   └── SearchBar.tsx
+│   │   └── ui
+│   │       ├── alert-dialog.tsx
+│   │       ├── alert.tsx
+│   │       ├── avatar.tsx
+│   │       ├── badge.tsx
+│   │       ├── button.tsx
+│   │       ├── calendar.tsx
+│   │       ├── card.tsx
+│   │       ├── checkbox.tsx
+│   │       ├── command.tsx
+│   │       ├── dialog.tsx
+│   │       ├── dropdown-menu.tsx
+│   │       ├── form.tsx
+│   │       ├── input-group.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       ├── popover.tsx
+│   │       ├── progress.tsx
+│   │       ├── select.tsx
+│   │       ├── separator.tsx
+│   │       ├── sheet.tsx
+│   │       ├── sidebar.tsx
+│   │       ├── skeleton.tsx
+│   │       ├── sonner.tsx
+│   │       ├── table.tsx
+│   │       ├── tabs.tsx
+│   │       ├── textarea.tsx
+│   │       └── tooltip.tsx
+│   ├── hooks
+│   │   ├── use-mobile.ts
+│   │   ├── useAppointments.ts
+│   │   ├── useDebounce.ts
+│   │   ├── usePatients.ts
+│   │   ├── usePermission.ts
+│   │   ├── usePrescriptions.ts
+│   │   └── useRecords.ts
+│   ├── lib
+│   │   ├── utils
+│   │   │   └── generate-id.ts
+│   │   ├── audit.ts
+│   │   ├── auth.ts
+│   │   ├── email.ts
+│   │   ├── encryption.ts
+│   │   ├── prisma.ts
+│   │   ├── rbac.ts
+│   │   ├── record-utils.ts
+│   │   ├── supabase.ts
+│   │   └── utils.ts
+│   ├── schemas
+│   │   ├── appointment.schema.ts
+│   │   ├── auth.schema.ts
+│   │   ├── invoice.schema.ts
+│   │   ├── patient.schema.ts
+│   │   ├── prescription.schema.ts
+│   │   └── record.schema.ts
+│   ├── store
+│   │   └── appStore.ts
+│   ├── types
+│   │   ├── css.d.ts
+│   │   ├── index.ts
+│   │   ├── next-auth.d.ts
+│   │   └── records.ts
+│   └── middleware.ts
+├── .env
+├── .env.local
+├── .eslintrc.json
+├── .gitignore
+├── components.json
+├── next-env.d.ts
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── README.md
+├── tailwind.config.ts
+└── tsconfig.json
