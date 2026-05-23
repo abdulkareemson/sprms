@@ -472,3 +472,40 @@ export async function sendAppointmentCancellation(data: {
       </div>`,
   });
 }
+
+// ── Prescription Ready Notification ──────────────────────────────────────────
+export async function sendPrescriptionReadyEmail(data: {
+  patientName  : string;
+  patientEmail : string;
+  medicationName: string;
+  dispensedBy  : string;
+}): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="color:#1e293b;margin:0 0 16px;">Prescription Ready for Collection ✓</h2>
+    <p style="color:#475569;margin:0 0 16px;">
+      Dear <strong>${data.patientName}</strong>,
+    </p>
+    <p style="color:#475569;margin:0 0 24px;">
+      Your prescription has been dispensed and is ready for collection.
+    </p>
+    <table style="background:#f1f5f9;border-radius:6px;padding:20px;width:100%;margin:0 0 24px;">
+      <tr>
+        <td style="color:#64748b;font-size:13px;padding:6px 0;width:40%">Medication</td>
+        <td style="color:#1e293b;font-weight:bold;font-size:13px;padding:6px 0;">${data.medicationName}</td>
+      </tr>
+      <tr>
+        <td style="color:#64748b;font-size:13px;padding:6px 0;">Dispensed by</td>
+        <td style="color:#1e293b;font-size:13px;padding:6px 0;">${data.dispensedBy}</td>
+      </tr>
+    </table>
+    <p style="color:#475569;font-size:13px;margin:0;">
+      Please visit the pharmacy to collect your medication. Bring this email or your patient ID.
+    </p>
+  `);
+
+  await sendEmail({
+    to     : data.patientEmail,
+    subject: "SPRMS — Your Prescription is Ready",
+    html,
+  });
+}

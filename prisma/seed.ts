@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // ─── Clean existing data ───────────────────────────────
+  // ─── Clean existing data ───────────────────────────────────────────────────
   await prisma.auditLog.deleteMany();
   await prisma.patientDocument.deleteMany();
   await prisma.invoice.deleteMany();
@@ -24,7 +24,7 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("Password@123", 12);
 
-  // ─── 1. ADMIN ─────────────────────────────────────────
+  // ─── 1. ADMIN ─────────────────────────────────────────────────────────────
   await prisma.user.create({
     data: {
       email: "admin@sprms.com",
@@ -43,7 +43,7 @@ async function main() {
     },
   });
 
-  // ─── 2. DOCTOR ────────────────────────────────────────
+  // ─── 2. DOCTOR ────────────────────────────────────────────────────────────
   const doctor = await prisma.user.create({
     data: {
       email: "doctor@sprms.com",
@@ -64,7 +64,7 @@ async function main() {
     },
   });
 
-  // ─── 3. NURSE ─────────────────────────────────────────
+  // ─── 3. NURSE ─────────────────────────────────────────────────────────────
   await prisma.user.create({
     data: {
       email: "nurse@sprms.com",
@@ -84,7 +84,7 @@ async function main() {
     },
   });
 
-  // ─── 4. RECEPTIONIST ──────────────────────────────────
+  // ─── 4. RECEPTIONIST ──────────────────────────────────────────────────────
   const receptionist = await prisma.user.create({
     data: {
       email: "reception@sprms.com",
@@ -103,7 +103,7 @@ async function main() {
     },
   });
 
-  // ─── 5. PHARMACIST ────────────────────────────────────
+  // ─── 5. PHARMACIST ────────────────────────────────────────────────────────
   await prisma.user.create({
     data: {
       email: "pharmacy@sprms.com",
@@ -124,7 +124,7 @@ async function main() {
     },
   });
 
-  // ─── 6. PATIENT USER ──────────────────────────────────
+  // ─── 6. PATIENT USER ──────────────────────────────────────────────────────
   const patientUser = await prisma.user.create({
     data: {
       email: "patient@sprms.com",
@@ -136,7 +136,7 @@ async function main() {
     },
   });
 
-  // ─── 7. SAMPLE PATIENTS ───────────────────────────────
+  // ─── 7. SAMPLE PATIENTS ───────────────────────────────────────────────────
   const patient1 = await prisma.patient.create({
     data: {
       patientNumber: "PAT-2024-0001",
@@ -190,30 +190,40 @@ async function main() {
     },
   });
 
-  // ─── 8. SAMPLE APPOINTMENTS ───────────────────────────
+  // ─── 8. SAMPLE APPOINTMENTS ───────────────────────────────────────────────
+  // FIX: Added endTime (scheduledAt + 30 minutes) — required by schema
+
+  const appt1Start = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const appt1End = new Date(appt1Start.getTime() + 30 * 60 * 1000);
+
   await prisma.appointment.create({
     data: {
       patientId: patient1.id,
       doctorId: doctor.id,
       createdById: receptionist.id,
-      scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      scheduledAt: appt1Start,
+      endTime: appt1End, // ← FIXED: was missing
       status: "CONFIRMED",
       reason: "General checkup",
     },
   });
+
+  const appt2Start = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  const appt2End = new Date(appt2Start.getTime() + 30 * 60 * 1000);
 
   await prisma.appointment.create({
     data: {
       patientId: patient2.id,
       doctorId: doctor.id,
       createdById: receptionist.id,
-      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      scheduledAt: appt2Start,
+      endTime: appt2End, // ← FIXED: was missing
       status: "SCHEDULED",
       reason: "Follow-up consultation",
     },
   });
 
-  // ─── 9. SEED COMPLETE ─────────────────────────────────
+  // ─── 9. SEED COMPLETE ─────────────────────────────────────────────────────
   console.log("✅ Seeding complete!");
   console.log("\n📋 Test Accounts:");
   console.log("─────────────────────────────────────────");

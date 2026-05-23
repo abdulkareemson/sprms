@@ -69,7 +69,8 @@ function getWeekBounds(date: Date): { from: string; to: string } {
 export default function AppointmentsPage() {
   const { calendarView, setCalendarView, selectedDate, setSelectedDate } =
     useAppStore();
-  const canManage = usePermission("manage_appointments");
+  const { hasPermission } = usePermission();
+  const canManage = hasPermission("manage_appointments");
 
   const [displayMode, setDisplayMode] = useState<"calendar" | "list">(
     "calendar",

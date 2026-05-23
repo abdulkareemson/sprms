@@ -147,7 +147,7 @@ model StaffProfile {
   updatedAt      DateTime @updatedAt
 
   // Relations
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("staff_profiles")
 }
@@ -157,15 +157,15 @@ model StaffProfile {
 // ─────────────────────────────────────────────
 
 model PasswordReset {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_resets")
 }
@@ -175,15 +175,15 @@ model PasswordReset {
 // ─────────────────────────────────────────────
 
 model EmailVerification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("email_verifications")
 }
@@ -193,42 +193,42 @@ model EmailVerification {
 // ─────────────────────────────────────────────
 
 model Patient {
-  id                 String      @id @default(cuid())
-  patientNumber      String      @unique
-  userId             String?     @unique
-  firstName          String
-  lastName           String
-  dateOfBirth        DateTime
-  gender             Gender
-  bloodGroup         BloodGroup  @default(UNKNOWN)
-  phone              String?
-  email              String?
-  address            String?
-  city               String?
-  state              String?
-  nationality        String      @default("Nigerian")
+  id            String     @id @default(cuid())
+  patientNumber String     @unique
+  userId        String?    @unique
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime
+  gender        Gender
+  bloodGroup    BloodGroup @default(UNKNOWN)
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  state         String?
+  nationality   String     @default("Nigerian")
 
   // Emergency contact
-  emergencyName      String?
-  emergencyPhone     String?
-  emergencyRelation  String?
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
 
   // Insurance
-  insuranceProvider  String?
-  insuranceNumber    String?
+  insuranceProvider String?
+  insuranceNumber   String?
 
-  isActive           Boolean     @default(true)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user               User?       @relation(fields: [userId], references: [id])
-  medicalRecords     MedicalRecord[]
-  vitalSigns         VitalSign[]
-  prescriptions      Prescription[]
-  appointments       Appointment[]
-  invoices           Invoice[]
-  documents          PatientDocument[]
+  user           User?             @relation(fields: [userId], references: [id])
+  medicalRecords MedicalRecord[]
+  vitalSigns     VitalSign[]
+  prescriptions  Prescription[]
+  appointments   Appointment[]
+  invoices       Invoice[]
+  documents      PatientDocument[]
 
   @@map("patients")
 }
@@ -238,26 +238,26 @@ model Patient {
 // ─────────────────────────────────────────────
 
 model MedicalRecord {
-  id            String      @id @default(cuid())
-  recordNumber  String      @unique
-  patientId     String
-  createdById   String
-  recordType    RecordType
-  title         String
+  id           String     @id @default(cuid())
+  recordNumber String     @unique
+  patientId    String
+  createdById  String
+  recordType   RecordType
+  title        String
 
   // Encrypted fields (stored as encrypted strings)
-  diagnosis     String?     // encrypted
-  treatment     String?     // encrypted
-  notes         String?     // encrypted
+  diagnosis String? // encrypted
+  treatment String? // encrypted
+  notes     String? // encrypted
 
-  icdCode       String?
-  isConfidential Boolean    @default(false)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  icdCode        String?
+  isConfidential Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  createdBy     User          @relation("RecordCreatedBy", fields: [createdById], references: [id])
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdBy     User              @relation("RecordCreatedBy", fields: [createdById], references: [id])
   vitalSigns    VitalSign[]
   prescriptions Prescription[]
   documents     PatientDocument[]
@@ -270,25 +270,25 @@ model MedicalRecord {
 // ─────────────────────────────────────────────
 
 model VitalSign {
-  id                  String    @id @default(cuid())
-  patientId           String
-  recordId            String?
-  temperature         Float?    // Celsius
-  systolicBP          Int?      // mmHg
-  diastolicBP         Int?      // mmHg
-  heartRate           Int?      // bpm
-  respiratoryRate     Int?      // breaths/min
-  oxygenSaturation    Float?    // percentage
-  weight              Float?    // kg
-  height              Float?    // cm
-  bmi                 Float?    // auto-calculated
-  recordedAt          DateTime  @default(now())
-  notes               String?
-  createdAt           DateTime  @default(now())
+  id               String   @id @default(cuid())
+  patientId        String
+  recordId         String?
+  temperature      Float? // Celsius
+  systolicBP       Int? // mmHg
+  diastolicBP      Int? // mmHg
+  heartRate        Int? // bpm
+  respiratoryRate  Int? // breaths/min
+  oxygenSaturation Float? // percentage
+  weight           Float? // kg
+  height           Float? // cm
+  bmi              Float? // auto-calculated
+  recordedAt       DateTime @default(now())
+  notes            String?
+  createdAt        DateTime @default(now())
 
   // Relations
-  patient             Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  medicalRecord       MedicalRecord? @relation(fields: [recordId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicalRecord MedicalRecord? @relation(fields: [recordId], references: [id])
 
   @@map("vital_signs")
 }
@@ -298,26 +298,26 @@ model VitalSign {
 // ─────────────────────────────────────────────
 
 model Prescription {
-  id               String         @id @default(cuid())
-  patientId        String
-  recordId         String?
-  prescribedById   String
-  medicationName   String
-  dosage           String
-  frequency        String
-  duration         String
-  route            String
-  instructions     String?        // encrypted
-  dispenseStatus   DispenseStatus @default(PENDING)
-  dispensedAt      DateTime?
-  dispensingNotes  String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  patientId       String
+  recordId        String?
+  prescribedById  String
+  medicationName  String
+  dosage          String
+  frequency       String
+  duration        String
+  route           String
+  instructions    String? // encrypted
+  dispenseStatus  DispenseStatus @default(PENDING)
+  dispensedAt     DateTime?
+  dispensingNotes String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   // Relations
-  patient          Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  medicalRecord    MedicalRecord? @relation(fields: [recordId], references: [id])
-  prescribedBy     User           @relation(fields: [prescribedById], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicalRecord MedicalRecord? @relation(fields: [recordId], references: [id])
+  prescribedBy  User           @relation(fields: [prescribedById], references: [id])
 
   @@map("prescriptions")
 }
@@ -344,10 +344,10 @@ model Appointment {
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  patient         Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor          User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
-  createdBy       User              @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
-  invoices        Invoice[]
+  patient   Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    User      @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  createdBy User      @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  invoices  Invoice[]
 
   @@map("appointments")
 }
@@ -357,21 +357,21 @@ model Appointment {
 // ─────────────────────────────────────────────
 
 model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNumber   String        @unique
-  patientId       String
-  appointmentId   String?
-  items           Json
-  totalAmount     Float
-  paymentStatus   PaymentStatus @default(PENDING)
-  paidAt          DateTime?
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  patientId     String
+  appointmentId String?
+  items         Json
+  totalAmount   Float
+  paymentStatus PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   // Relations
-  patient         Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  appointment     Appointment?  @relation(fields: [appointmentId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
 
   @@map("invoices")
 }
@@ -392,7 +392,7 @@ model AuditLog {
   createdAt   DateTime    @default(now())
 
   // Relations
-  user        User?       @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
 }
@@ -402,7 +402,7 @@ model AuditLog {
 // ─────────────────────────────────────────────
 
 model PatientDocument {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   patientId    String
   recordId     String?
   fileName     String
@@ -410,10 +410,10 @@ model PatientDocument {
   fileSize     Int
   storagePath  String
   uploadedById String
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   // Relations
-  patient      Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
   medicalRecord MedicalRecord? @relation(fields: [recordId], references: [id])
 
   @@map("patient_documents")

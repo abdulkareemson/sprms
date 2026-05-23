@@ -129,8 +129,9 @@ const RECORD_TYPE_COLORS: Record<string, string> = {
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const canEdit = usePermission("edit_patient");
-  const canViewRecords = usePermission("view_all_patients");
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission("edit_patient");
+  const canViewRecords = hasPermission("create_medical_record");
 
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);

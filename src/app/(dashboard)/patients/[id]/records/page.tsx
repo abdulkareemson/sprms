@@ -32,9 +32,10 @@ import type { FullMedicalRecord } from "@/types/records";
 export default function PatientRecordsPage() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
-  const canCreateRecord = usePermission("create_medical_record");
-  const canCreateNote = usePermission("create_nursing_note");
-  const canRecordVitals = usePermission("record_vitals");
+  const { hasPermission } = usePermission();
+  const canCreateRecord = hasPermission("create_medical_record");
+  const canCreateNote = hasPermission("create_nursing_note");
+  const canRecordVitals = hasPermission("record_vitals");
 
   const { records, recordType, setRecordType, isLoading, refetch } =
     useRecords(patientId);

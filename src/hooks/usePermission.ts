@@ -1,29 +1,35 @@
-//src/hooks/usePermission.ts
+// src/hooks/usePermission.ts
 
 "use client";
 
 import { useSession } from "next-auth/react";
+import { hasPermission as checkPermission, type Permission } from "@/lib/rbac";
 import { Role } from "@prisma/client";
-import { hasPermission, type Permission } from "@/lib/rbac";
 
-export function usePermission(permission: Permission): boolean {
-  const { data: session } = useSession();
+// ─── Return type ──────────────────────────────────────────────────────────────
 
-  if (!session?.user?.role) return false;
-
-  return hasPermission(session.user.role as Role, permission);
+interface UsePermissionReturn {
+  hasPermission: (permission: Permission) => boolean;
+  role: Role | null;
+  isLoading: boolean;
 }
 
-export function useRole(): Role | null {
-  const { data: session } = useSession();
-  return (session?.user?.role as Role) ?? null;
-}
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useCurrentUser() {
+export function usePermission(): UsePermissionReturn {
   const { data: session, status } = useSession();
+
+  const role = (session?.user?.role as Role) ?? null;
+  const isLoading = status === "loading";
+
+  const hasPermission = (permission: Permission): boolean => {
+    if (!role) return false;
+    return checkPermission(role, permission);
+  };
+
   return {
-    user: session?.user ?? null,
-    isLoading: status === "loading",
-    isAuthenticated: status === "authenticated",
+    hasPermission,
+    role,
+    isLoading,
   };
 }

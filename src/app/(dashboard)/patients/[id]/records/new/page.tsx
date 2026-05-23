@@ -27,7 +27,8 @@ type RecordFormValues = z.input<typeof createRecordSchema>;
 export default function NewRecordPage() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
-  const canCreateFullRecord = usePermission("create_medical_record");
+  const { hasPermission } = usePermission();
+  const canCreateFullRecord = hasPermission("create_medical_record");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

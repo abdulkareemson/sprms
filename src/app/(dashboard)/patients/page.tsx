@@ -37,7 +37,8 @@ interface Patient {
 
 export default function PatientsPage() {
   const router = useRouter();
-  const canRegister = usePermission("register_patient");
+  const { hasPermission } = usePermission();
+  const canRegister = hasPermission("register_patient");
 
   const {
     patients,
