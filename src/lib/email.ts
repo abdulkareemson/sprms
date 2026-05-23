@@ -372,3 +372,103 @@ export async function sendAppointmentReminderEmail(
     html,
   });
 }
+
+// ── Appointment Confirmation ──────────────────────────────────────────────────
+export async function sendAppointmentConfirmation(data: {
+  patientName: string;
+  patientEmail: string;
+  doctorName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  reason: string;
+}): Promise<void> {
+  await sendEmail({
+    to: data.patientEmail,
+    subject: "Appointment Confirmed — SPRMS",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:linear-gradient(135deg,#1e40af,#0891b2);padding:32px;border-radius:12px 12px 0 0">
+          <h1 style="color:white;margin:0;font-size:24px">Appointment Confirmed ✓</h1>
+          <p style="color:#bfdbfe;margin:8px 0 0">Secure Patient Record Management System</p>
+        </div>
+        <div style="background:#f8fafc;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0">
+          <p style="color:#374151;font-size:16px">Dear <strong>${data.patientName}</strong>,</p>
+          <p style="color:#6b7280">Your appointment has been successfully booked. Here are the details:</p>
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:20px 0">
+            <table style="width:100%;border-collapse:collapse">
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:14px;width:40%">Doctor</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">Dr. ${data.doctorName}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Date</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">${data.appointmentDate}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Time</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">${data.appointmentTime}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Reason</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">${data.reason}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="color:#6b7280;font-size:14px">Please arrive 10 minutes before your appointment time. If you need to cancel or reschedule, please contact us as soon as possible.</p>
+          <p style="color:#9ca3af;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0">
+            This is an automated message from SPRMS — Ahmadu Bello University Teaching Hospital
+          </p>
+        </div>
+      </div>`,
+  });
+}
+
+// ── Appointment Cancellation ──────────────────────────────────────────────────
+export async function sendAppointmentCancellation(data: {
+  patientName: string;
+  patientEmail: string;
+  doctorName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  reason: string;
+}): Promise<void> {
+  await sendEmail({
+    to: data.patientEmail,
+    subject: "Appointment Cancelled — SPRMS",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:linear-gradient(135deg,#dc2626,#ea580c);padding:32px;border-radius:12px 12px 0 0">
+          <h1 style="color:white;margin:0;font-size:24px">Appointment Cancelled</h1>
+          <p style="color:#fecaca;margin:8px 0 0">Secure Patient Record Management System</p>
+        </div>
+        <div style="background:#f8fafc;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e2e8f0">
+          <p style="color:#374151;font-size:16px">Dear <strong>${data.patientName}</strong>,</p>
+          <p style="color:#6b7280">Your appointment has been cancelled. Details below:</p>
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:20px 0">
+            <table style="width:100%;border-collapse:collapse">
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:14px;width:40%">Doctor</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">Dr. ${data.doctorName}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Date</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">${data.appointmentDate}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Time</td>
+                <td style="padding:8px 0;color:#111827;font-weight:600">${data.appointmentTime}</td>
+              </tr>
+              <tr style="border-top:1px solid #f3f4f6">
+                <td style="padding:8px 0;color:#6b7280;font-size:14px">Cancellation Reason</td>
+                <td style="padding:8px 0;color:#dc2626;font-weight:600">${data.reason}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="color:#6b7280;font-size:14px">Please contact us to reschedule a new appointment at your convenience.</p>
+          <p style="color:#9ca3af;font-size:12px;margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0">
+            This is an automated message from SPRMS — Ahmadu Bello University Teaching Hospital
+          </p>
+        </div>
+      </div>`,
+  });
+}

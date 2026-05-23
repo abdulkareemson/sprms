@@ -60,6 +60,16 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum AppointmentType {
+  CONSULTATION
+  FOLLOW_UP
+  PROCEDURE
+  LAB_TEST
+  IMAGING
+  VACCINATION
+  EMERGENCY
+}
+
 enum DispenseStatus {
   PENDING
   DISPENSED
@@ -129,6 +139,7 @@ model StaffProfile {
   firstName      String
   lastName       String
   phone          String?
+  specialization String?
   department     String?
   qualification  String?
   licenseNumber  String?
@@ -316,25 +327,27 @@ model Prescription {
 // ─────────────────────────────────────────────
 
 model Appointment {
-  id               String            @id @default(cuid())
-  patientId        String
-  doctorId         String
-  createdById      String
-  scheduledAt      DateTime
-  durationMinutes  Int               @default(30)
-  status           AppointmentStatus @default(SCHEDULED)
-  reason           String?
-  notes            String?
-  cancelReason     String?
-  reminderSent     Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  patientId       String
+  doctorId        String
+  createdById     String
+  scheduledAt     DateTime
+  endTime         DateTime
+  durationMinutes Int               @default(30)
+  type            AppointmentType   @default(CONSULTATION)
+  status          AppointmentStatus @default(SCHEDULED)
+  reason          String?
+  notes           String?
+  cancelReason    String?
+  reminderSent    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   // Relations
-  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor           User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
-  createdBy        User              @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
-  invoices         Invoice[]
+  patient         Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor          User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  createdBy       User              @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  invoices        Invoice[]
 
   @@map("appointments")
 }
