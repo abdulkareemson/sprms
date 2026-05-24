@@ -1,3 +1,5 @@
+// src/middleware.ts
+
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -13,13 +15,25 @@ const PUBLIC_ROUTES = [
 ];
 
 // Routes restricted to ADMIN only
-const ADMIN_ONLY_ROUTES = ["/staff", "/audit-logs", "/settings"];
+const ADMIN_ONLY_ROUTES = ["/staff", "/audit-logs"];
 
 // Routes restricted to specific roles
+// FIX: Added /patients, /records, /my-records with correct role lists
 const ROUTE_PERMISSIONS: Record<string, Role[]> = {
+  "/patients": [
+    Role.ADMIN,
+    Role.DOCTOR,
+    Role.NURSE,
+    Role.RECEPTIONIST,
+  ],
   "/pharmacy": [Role.ADMIN, Role.PHARMACIST],
-  "/billing": [Role.ADMIN, Role.RECEPTIONIST, Role.PATIENT],
+  "/billing": [
+    Role.ADMIN,
+    Role.RECEPTIONIST,
+    Role.PATIENT,
+  ],
   "/reports": [Role.ADMIN, Role.DOCTOR],
+  "/my-records": [Role.PATIENT],
 };
 
 export default auth(function middleware(request: NextRequest) {
@@ -36,25 +50,24 @@ export default auth(function middleware(request: NextRequest) {
     }
   ).auth;
 
-  // Allow public routes without authentication
+  // ── Allow public routes ───────────────────────────────────────────────────
   const isPublicRoute = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
   if (isPublicRoute) {
-    // If already logged in, redirect to dashboard
     if (session?.user) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
 
-  // Allow API routes for auth (NextAuth internals)
+  // ── Allow NextAuth internals ──────────────────────────────────────────────
   if (pathname.startsWith("/api/auth")) {
     return NextResponse.next();
   }
 
-  // Require authentication for all other routes
+  // ── Require authentication ────────────────────────────────────────────────
   if (!session?.user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
@@ -64,7 +77,7 @@ export default auth(function middleware(request: NextRequest) {
   const user = session.user;
   const role = user.role as Role;
 
-  // Force password change for staff on first login
+  // ── Force password change ─────────────────────────────────────────────────
   if (
     user.mustChangePassword &&
     pathname !== "/settings" &&
@@ -73,7 +86,7 @@ export default auth(function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/settings", request.url));
   }
 
-  // Force email verification for patients
+  // ── Force email verification for patients ─────────────────────────────────
   if (
     role === Role.PATIENT &&
     !user.isEmailVerified &&
@@ -83,7 +96,7 @@ export default auth(function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/verify-email", request.url));
   }
 
-  // Check admin-only routes
+  // ── Admin-only routes ─────────────────────────────────────────────────────
   const isAdminRoute = ADMIN_ONLY_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -92,7 +105,13 @@ export default auth(function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Check role-specific routes
+  // ── Settings — accessible to all authenticated users ─────────────────────
+  // (must come before ROUTE_PERMISSIONS check)
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+    return NextResponse.next();
+  }
+
+  // ── Role-specific route protection ────────────────────────────────────────
   for (const [route, allowedRoles] of Object.entries(ROUTE_PERMISSIONS)) {
     if (pathname === route || pathname.startsWith(`${route}/`)) {
       if (!allowedRoles.includes(role)) {
@@ -106,5 +125,7 @@ export default auth(function middleware(request: NextRequest) {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.svg|public/).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|logo.svg|public/).*)",
+  ],
 };

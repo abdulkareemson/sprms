@@ -1,4 +1,4 @@
-//src/app/api/patients/route.ts
+// src/app/api/patients/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -11,13 +11,21 @@ import {
 } from "@/schemas/patient.schema";
 import { AuditAction, BloodGroup, Gender, Role } from "@prisma/client";
 import { generatePatientNumber } from "@/lib/utils/generate-id";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
-// ─── GET /api/patients — List + search patients ───────────────────────────────
+// ─── GET /api/patients ────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -52,7 +60,10 @@ export async function GET(request: NextRequest) {
             { firstName: { contains: search, mode: "insensitive" as const } },
             { lastName: { contains: search, mode: "insensitive" as const } },
             {
-              patientNumber: { contains: search, mode: "insensitive" as const },
+              patientNumber: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
             },
             { phone: { contains: search, mode: "insensitive" as const } },
             { email: { contains: search, mode: "insensitive" as const } },
@@ -118,12 +129,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST /api/patients — Register new patient (staff) ───────────────────────
+// ─── POST /api/patients ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -144,7 +157,6 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
-    // Check for duplicate email if provided
     if (data.email) {
       const existing = await prisma.patient.findFirst({
         where: { email: data.email, isActive: true },

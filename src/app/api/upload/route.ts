@@ -13,10 +13,19 @@ import {
 } from "@/lib/supabase";
 import { Role } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ─── POST /api/upload ─────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.UPLOAD);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     // 1. Auth check
     const session = await auth();

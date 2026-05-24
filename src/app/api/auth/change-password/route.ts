@@ -1,4 +1,4 @@
-//src/app/api/auth/change-password/route.ts
+// src/app/api/auth/change-password/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -7,11 +7,20 @@ import { changePasswordSchema } from "@/schemas/auth.schema";
 import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 per 15 minutes
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.AUTH);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -27,6 +36,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { currentPassword, newPassword } = validation.data;
+
+    // Prevent same password reuse
+    if (currentPassword === newPassword) {
+      return NextResponse.json(
+        { error: "New password must be different from your current password" },
+        { status: 400 },
+      );
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },

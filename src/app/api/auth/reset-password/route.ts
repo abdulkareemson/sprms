@@ -1,4 +1,4 @@
-//src/app/api/auth/reset-password/route.ts
+// src/app/api/auth/reset-password/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -6,8 +6,18 @@ import { resetPasswordSchema } from "@/schemas/auth.schema";
 import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 per 15 minutes
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.AUTH);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const body = await request.json();
     const validation = resetPasswordSchema.safeParse(body);
@@ -15,13 +25,12 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Validation failed", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { token, password } = validation.data;
 
-    // Find valid token
     const resetRecord = await prisma.passwordReset.findUnique({
       where: { token },
       include: { user: true },
@@ -30,27 +39,26 @@ export async function POST(request: NextRequest) {
     if (!resetRecord) {
       return NextResponse.json(
         { error: "Invalid or expired reset link" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (resetRecord.usedAt) {
       return NextResponse.json(
         { error: "This reset link has already been used" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (resetRecord.expiresAt < new Date()) {
       return NextResponse.json(
         { error: "This reset link has expired. Please request a new one." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Update password and mark token as used
     await prisma.$transaction([
       prisma.user.update({
         where: { id: resetRecord.userId },
@@ -81,7 +89,7 @@ export async function POST(request: NextRequest) {
     console.error("[POST /api/auth/reset-password]", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

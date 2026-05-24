@@ -9,10 +9,19 @@ import { encrypt, decrypt } from "@/lib/encryption";
 import { createRecordSchema } from "@/schemas/record.schema";
 import { AuditAction, RecordType, Role } from "@prisma/client";
 import { generateRecordNumber } from "@/lib/utils/generate-id";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ─── GET /api/records ─────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
 
@@ -175,6 +184,9 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/records ────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
 

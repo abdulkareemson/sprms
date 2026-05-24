@@ -7,10 +7,19 @@ import { hasPermission } from "@/lib/rbac";
 import { createAuditLog, getIpAddress, getUserAgent } from "@/lib/audit";
 import { Role, AuditAction } from "@prisma/client";
 import { decrypt } from "@/lib/encryption";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ─── GET /api/reports ─────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.REPORTS);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {

@@ -11,10 +11,19 @@ import {
   invoiceQuerySchema,
 } from "@/schemas/invoice.schema";
 import { Role, PaymentStatus } from "@prisma/client";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ─── GET /api/invoices ────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     // 1. Auth check
     const session = await auth();
@@ -168,6 +177,9 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/invoices ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+  
   try {
     // 1. Auth check
     const session = await auth();

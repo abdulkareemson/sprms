@@ -8,14 +8,23 @@ import { createAuditLog, getIpAddress, getUserAgent } from "@/lib/audit";
 import { createStaffSchema } from "@/schemas/auth.schema";
 import { AuditAction, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { sendStaffWelcomeEmail } from "@/lib/email";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
-// ─── GET /api/staff — List all staff ─────────────────────────────────────────
+// ─── GET /api/staff ───────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -26,12 +35,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") ?? "";
-    const role = searchParams.get("role") ?? "";
+    const roleFilter = searchParams.get("role") ?? "";
 
     const staff = await prisma.user.findMany({
       where: {
         role: { not: Role.PATIENT },
-        ...(role && { role: role as Role }),
+        ...(roleFilter && { role: roleFilter as Role }),
         ...(search && {
           OR: [
             { email: { contains: search, mode: "insensitive" } },
@@ -50,7 +59,6 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Remove passwords from response
     const safeStaff = staff.map(({ password: _pw, ...rest }) => {
       void _pw;
       return rest;
@@ -75,12 +83,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST /api/staff — Create staff account ───────────────────────────────────
+// ─── POST /api/staff ──────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -101,7 +111,6 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
-    // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -113,11 +122,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate temporary password
-    const temporaryPassword = generateTemporaryPassword();
+    // FIX: Use crypto.randomBytes for cryptographically secure temp password
+    const temporaryPassword = generateSecureTemporaryPassword();
     const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
 
-    // Create user + staff profile
     const newUser = await prisma.user.create({
       data: {
         email: data.email,
@@ -140,7 +148,6 @@ export async function POST(request: NextRequest) {
       include: { staffProfile: true },
     });
 
-    // Send welcome email
     await sendStaffWelcomeEmail(
       data.email,
       `${data.firstName} ${data.lastName}`,
@@ -148,7 +155,6 @@ export async function POST(request: NextRequest) {
       temporaryPassword,
     );
 
-    // Audit log
     await createAuditLog({
       userId: session.user.id,
       action: AuditAction.CREATE,
@@ -175,27 +181,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── FIX: Cryptographically secure temporary password ────────────────────────
 
-function generateTemporaryPassword(): string {
+function generateSecureTemporaryPassword(): string {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
   const digits = "0123456789";
   const special = "@#$%&!";
+  const all = upper + lower + digits + special;
 
-  const getRandom = (chars: string) =>
-    chars[Math.floor(Math.random() * chars.length)];
+  // Use crypto.randomBytes for true randomness
+  const bytes = crypto.randomBytes(12);
+  const chars: string[] = [];
 
-  const password = [
-    getRandom(upper),
-    getRandom(upper),
-    getRandom(lower),
-    getRandom(lower),
-    getRandom(digits),
-    getRandom(digits),
-    getRandom(special),
-    getRandom(special),
-  ];
+  // Guarantee at least one from each character class
+  chars.push(upper[crypto.randomBytes(1)[0] % upper.length]);
+  chars.push(lower[crypto.randomBytes(1)[0] % lower.length]);
+  chars.push(digits[crypto.randomBytes(1)[0] % digits.length]);
+  chars.push(special[crypto.randomBytes(1)[0] % special.length]);
 
-  return password.sort(() => Math.random() - 0.5).join("");
+  // Fill remaining 8 characters
+  for (let i = 4; i < 12; i++) {
+    chars.push(all[bytes[i] % all.length]);
+  }
+
+  // Shuffle using Fisher-Yates with crypto.randomBytes
+  const shuffleBytes = crypto.randomBytes(chars.length);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = shuffleBytes[i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join("");
 }

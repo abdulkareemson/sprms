@@ -1,4 +1,4 @@
-//src/app/api/auth/register/route.ts
+// src/app/api/auth/register/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -8,8 +8,19 @@ import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction, Gender, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
+import { generatePatientNumber } from "@/lib/utils/generate-id";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 registrations per hour per IP
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.REGISTER);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const body = await request.json();
     const validation = registerPatientSchema.safeParse(body);
@@ -23,7 +34,6 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
-    // Check if email exists
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -37,12 +47,9 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    // Generate patient number
-    const year = new Date().getFullYear();
-    const count = await prisma.patient.count();
-    const patientNumber = `PAT-${year}-${String(count + 1).padStart(4, "0")}`;
+    // FIX: Use generatePatientNumber() — atomic, no race condition
+    const patientNumber = await generatePatientNumber();
 
-    // Create user and patient in transaction
     const { user, patient } = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -73,13 +80,12 @@ export async function POST(request: NextRequest) {
 
     // Create email verification token
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await prisma.emailVerification.create({
       data: { userId: user.id, token, expiresAt },
     });
 
-    // Send verification email
     await sendEmailVerificationEmail(
       data.email,
       `${data.firstName} ${data.lastName}`,
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
       action: AuditAction.CREATE,
       resource: "Patient",
       resourceId: patient.id,
-      description: `Patient self-registered: ${data.firstName} ${data.lastName}`,
+      description: `Patient self-registered: ${data.firstName} ${data.lastName} (${patientNumber})`,
       ipAddress: getIpAddress(request),
     });
 

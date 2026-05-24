@@ -15,10 +15,19 @@ import {
   startOfDay,
   endOfDay,
 } from "date-fns";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ─── GET /api/dashboard/stats ─────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {

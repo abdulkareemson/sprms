@@ -11,9 +11,18 @@ import {
   prescriptionQuerySchema,
 } from "@/schemas/prescription.schema";
 import { AuditAction, Role } from "@prisma/client";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ── GET /api/prescriptions ────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -138,6 +147,9 @@ export async function GET(req: NextRequest) {
 
 // ── POST /api/prescriptions ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {

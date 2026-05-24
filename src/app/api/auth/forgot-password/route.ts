@@ -1,4 +1,4 @@
-//src/app/api/auth/forgot-password/route.ts
+// src/app/api/auth/forgot-password/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -7,8 +7,18 @@ import { forgotPasswordSchema } from "@/schemas/auth.schema";
 import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction } from "@prisma/client";
 import crypto from "crypto";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 3 attempts per hour per IP
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.PASSWORD_RESET);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const body = await request.json();
     const validation = forgotPasswordSchema.safeParse(body);
@@ -33,8 +43,7 @@ export async function POST(request: NextRequest) {
       include: { staffProfile: true },
     });
 
-    if (!user) return successResponse;
-    if (!user.isActive) return successResponse;
+    if (!user || !user.isActive) return successResponse;
 
     // Invalidate existing tokens
     await prisma.passwordReset.updateMany({
@@ -42,7 +51,7 @@ export async function POST(request: NextRequest) {
       data: { usedAt: new Date() },
     });
 
-    // Create new token
+    // Create new token using cryptographically secure random bytes
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
@@ -50,7 +59,6 @@ export async function POST(request: NextRequest) {
       data: { userId: user.id, token, expiresAt },
     });
 
-    // Send email
     const name = user.staffProfile
       ? `${user.staffProfile.firstName} ${user.staffProfile.lastName}`
       : email.split("@")[0];

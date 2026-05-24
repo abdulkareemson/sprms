@@ -1,21 +1,43 @@
-//src/app/api/auth/verify-email/route.ts
+// src/app/api/auth/verify-email/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction } from "@prisma/client";
+import { z } from "zod";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
+
+// FIX: Validate token with Zod instead of raw body access
+const verifyEmailSchema = z.object({
+  token: z
+    .string()
+    .min(1, "Verification token is required")
+    .max(128, "Invalid token"),
+});
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 per 15 minutes
+  const rl = checkRateLimit(getIdentifier(request), RATE_LIMITS.AUTH);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const body = await request.json();
-    const { token } = body;
 
-    if (!token) {
+    // FIX: Zod validation on token
+    const validation = verifyEmailSchema.safeParse(body);
+    if (!validation.success) {
       return NextResponse.json(
         { error: "Verification token is required" },
         { status: 400 },
       );
     }
+
+    const { token } = validation.data;
 
     const verification = await prisma.emailVerification.findUnique({
       where: { token },
@@ -46,7 +68,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify email
     await prisma.$transaction([
       prisma.user.update({
         where: { id: verification.userId },

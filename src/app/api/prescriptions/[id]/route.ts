@@ -8,12 +8,21 @@ import { createAuditLog, getIpAddress, getUserAgent } from "@/lib/audit";
 import { decrypt } from "@/lib/encryption";
 import { dispensePrescriptionSchema } from "@/schemas/prescription.schema";
 import { AuditAction, Role } from "@prisma/client";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 // ── GET /api/prescriptions/[id] ───────────────────────────────────────────────
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -116,6 +125,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -234,6 +246,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {

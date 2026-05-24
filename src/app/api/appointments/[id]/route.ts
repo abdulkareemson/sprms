@@ -11,11 +11,20 @@ import {
   cancelAppointmentSchema,
 } from "@/schemas/appointment.schema";
 import { Role } from "@prisma/client";
+import {
+  checkRateLimit,
+  getIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from "@/lib/rate-limit";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 // ── GET /api/appointments/[id] ────────────────────────────────────────────────
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const rl = checkRateLimit(getIdentifier(_req), RATE_LIMITS.API_READ);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -89,6 +98,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
 // ── PATCH /api/appointments/[id] ──────────────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -297,6 +309,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
 // ── DELETE /api/appointments/[id] — Admin only ────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const rl = checkRateLimit(getIdentifier(req), RATE_LIMITS.API_WRITE);
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await auth();
     if (!session?.user) {
