@@ -17,12 +17,18 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="flex min-h-screen bg-slate-50/80">
+      {/* Sidebar */}
       <AppSidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AppHeader />
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
-          <div className="max-w-7xl mx-auto">{children}</div>
+
+        <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>

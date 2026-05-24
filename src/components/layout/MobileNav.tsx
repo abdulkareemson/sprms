@@ -105,6 +105,15 @@ const navItems = [
   },
 ];
 
+const ROLE_COLORS: Record<string, string> = {
+  ADMIN: "bg-red-500/15 text-red-300 border-red-500/25",
+  DOCTOR: "bg-blue-500/15 text-blue-300 border-blue-500/25",
+  NURSE: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
+  RECEPTIONIST: "bg-violet-500/15 text-violet-300 border-violet-500/25",
+  PHARMACIST: "bg-amber-500/15 text-amber-300 border-amber-500/25",
+  PATIENT: "bg-teal-500/15 text-teal-300 border-teal-500/25",
+};
+
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -120,15 +129,17 @@ export function MobileNav() {
     .toUpperCase()
     .slice(0, 2);
 
+  const roleColor = ROLE_COLORS[userRole] ?? ROLE_COLORS.PATIENT;
+
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/login", redirect: true });
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-white text-lg shadow-lg">
+      <div className="flex items-center gap-3 px-5 py-5">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center text-lg shadow-lg shadow-blue-500/25">
           🏥
         </div>
         <div>
@@ -138,17 +149,22 @@ export function MobileNav() {
       </div>
 
       {/* Role */}
-      <div className="px-6 pb-3">
-        <span className="inline-flex items-center gap-1.5 bg-blue-500/10 text-blue-400 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-blue-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+      <div className="px-5 pb-3">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border",
+            roleColor,
+          )}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
           {userRole?.replace("_", " ")}
         </span>
       </div>
 
-      <div className="h-px bg-slate-700/50 mx-4" />
+      <div className="h-px bg-white/5 mx-4" />
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-thin">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -157,34 +173,34 @@ export function MobileNav() {
 
           return (
             <Link
-              key={item.label}
+              key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                isActive
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/20"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white",
+                "sidebar-link group", // ← "group" here directly
+                isActive ? "sidebar-link-active" : "sidebar-link-idle",
               )}
             >
-              <Icon className="h-4 w-4" />
-              <span className="flex-1">{item.label}</span>
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 text-sm">{item.label}</span>
               {isActive && <ChevronRight className="h-3 w-3 opacity-60" />}
             </Link>
           );
         })}
       </nav>
 
-      <div className="h-px bg-slate-700/50 mx-4" />
+      <div className="h-px bg-white/5 mx-4" />
 
       {/* User + Logout */}
-      <div className="p-4">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5 mb-2">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+      <div className="p-3 space-y-1">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-white font-medium truncate">{name}</p>
-            <p className="text-[11px] text-slate-400 truncate">
+            <p className="text-sm text-white font-medium truncate leading-none">
+              {name}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate mt-0.5">
               {session?.user?.email}
             </p>
           </div>
@@ -192,9 +208,9 @@ export function MobileNav() {
 
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 group"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
           Sign Out
         </button>
       </div>
