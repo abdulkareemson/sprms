@@ -128,9 +128,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className={cn("rounded-xl gap-2", v.button)}
           >
-            {isLoading && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             {isLoading ? "Processing..." : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

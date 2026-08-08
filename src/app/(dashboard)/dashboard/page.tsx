@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -240,20 +241,11 @@ export default async function DashboardPage() {
     return (
       <div className="space-y-6">
         {/* Welcome */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Welcome back, {firstName} 👋
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              {format(new Date(), "EEEE, MMMM d, yyyy")} — System overview
-            </p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
-            <Activity className="h-3.5 w-3.5" />
-            System Active
-          </div>
-        </div>
+        <WelcomeBanner
+          name={`Welcome back, ${firstName}`}
+          subtitle={`${format(new Date(), "EEEE, MMMM d, yyyy")} — System Overview`}
+          showStatus
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -408,14 +400,10 @@ export default async function DashboardPage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Good day, Dr. {firstName} 👋
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
-          </p>
-        </div>
+        <WelcomeBanner
+          name={`Good day, Dr. ${firstName}`}
+          subtitle={format(new Date(), "EEEE, MMMM d, yyyy")}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatsCard
@@ -481,14 +469,11 @@ export default async function DashboardPage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Pharmacy Dashboard 💊
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
-          </p>
-        </div>
+        <WelcomeBanner
+          name={`Pharmacy Dashboard`}
+          emoji="💊"
+          subtitle={format(new Date(), "EEEE, MMMM d, yyyy")}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatsCard
@@ -549,14 +534,10 @@ export default async function DashboardPage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Welcome, {firstName} 👋
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Your personal health portal
-          </p>
-        </div>
+        <WelcomeBanner
+          name={`Welcome, ${firstName}`}
+          subtitle="Your personal health portal"
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatsCard
@@ -656,14 +637,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">
-          Welcome, {firstName} 👋
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {roleLabel} Dashboard — {format(new Date(), "EEEE, MMMM d, yyyy")}
-        </p>
-      </div>
+      <WelcomeBanner
+        name={`Welcome, ${firstName}`}
+        subtitle={`${roleLabel} Dashboard — ${format(new Date(), "EEEE, MMMM d, yyyy")}`}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatsCard

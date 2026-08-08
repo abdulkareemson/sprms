@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import {
+  PDF_HOSPITAL_NAME as HOSPITAL_NAME,
+  PDF_HOSPITAL_ADDRESS as HOSPITAL_ADDRESS,
+  PDF_APP_NAME as APP_NAME,
+  loadLogoBase64,
+  drawLogo,
+  textStartX,
+} from "@/lib/pdfUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,13 +100,20 @@ const COLORS = {
 
 // ─── PDF Generator ────────────────────────────────────────────────────────────
 
-function generateInvoicePDF(invoice: InvoicePDFData): void {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+async function generateInvoicePDF(invoice: InvoicePDFData): Promise<void> {
+  // Load logo first
+  const logoB64 = await loadLogoBase64();
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   let y = 0;
 
-  // ── Helper: set fill + draw rect ──────────────────────────────────────────
+  // ── Helper ────────────────────────────────────────────────────────────
   const fillRect = (
     x: number,
     ry: number,
@@ -110,25 +125,35 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
     doc.rect(x, ry, w, h, "F");
   };
 
-  // ── HEADER BANNER ─────────────────────────────────────────────────────────
-  fillRect(0, 0, W, 42, COLORS.primary);
+  // ── HEADER BANNER ─────────────────────────────────────────────────────
+  fillRect(0, 0, W, 46, COLORS.primary);
 
   // Diagonal accent stripe
   doc.setFillColor(...COLORS.accent);
-  doc.triangle(W - 60, 0, W, 0, W, 42, "F");
+  doc.triangle(W - 60, 0, W, 0, W, 46, "F");
 
-  // Hospital name
+  // Draw logo on top of banner
+  drawLogo(doc, logoB64);
+
+  // Text start X — shifts right when logo present
+  const tX = textStartX(!!logoB64);
+
+  // Hospital name (Line 1)
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(20);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("SPRMS", 14, 16);
+  doc.text(HOSPITAL_NAME, tX, 14);
 
-  // Sub-title
-  doc.setFontSize(8.5);
+  // Hospital address (Line 2)
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(187, 210, 255);
-  doc.text("Secure Patient Record Management System", 14, 23);
-  doc.text("Ahmadu Bello University Teaching Hospital, Zaria", 14, 29);
+  doc.text(HOSPITAL_ADDRESS, tX, 21);
+
+  // App name (Line 3)
+  doc.setFontSize(7);
+  doc.setTextColor(187, 210, 255);
+  doc.text(APP_NAME, tX, 27);
 
   // INVOICE label on right
   doc.setFontSize(22);
@@ -142,9 +167,9 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
   doc.setTextColor(187, 210, 255);
   doc.text(invoice.invoiceNumber, W - 14, 26, { align: "right" });
 
-  y = 52;
+  y = 56;
 
-  // ── STATUS BADGE ──────────────────────────────────────────────────────────
+  // ── STATUS BADGE ──────────────────────────────────────────────────────
   const statusColors: Record<string, [number, number, number]> = {
     PAID: COLORS.success,
     PENDING: COLORS.warning,
@@ -152,14 +177,13 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
   };
   const statusColor = statusColors[invoice.paymentStatus] ?? COLORS.mid;
 
-  fillRect(W - 50, 46, 36, 8, statusColor);
+  fillRect(W - 50, 50, 36, 8, statusColor);
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(invoice.paymentStatus, W - 32, 51.5, { align: "center" });
+  doc.text(invoice.paymentStatus, W - 32, 55.5, { align: "center" });
 
-  // ── BILLING INFO GRID ─────────────────────────────────────────────────────
-  // Left: Bill To
+  // ── BILLING INFO GRID ─────────────────────────────────────────────────
   fillRect(14, y, 85, 5, COLORS.muted);
   doc.setTextColor(...COLORS.mid);
   doc.setFontSize(7.5);
@@ -211,41 +235,44 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
 
   // Right: Invoice Details
   const detailsX = W / 2 + 10;
-  let detailsY = 52 + 7;
+  let detailsY = 56 + 7;
 
-  fillRect(detailsX, 52, W - detailsX - 14, 5, COLORS.muted);
+  fillRect(detailsX, 56, W - detailsX - 14, 5, COLORS.muted);
   doc.setTextColor(...COLORS.mid);
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.text("INVOICE DETAILS", detailsX + 2, 52 + 3.5);
+  doc.text("INVOICE DETAILS", detailsX + 2, 56 + 3.5);
 
   const details: [string, string][] = [
     ["Invoice Number", invoice.invoiceNumber],
     ["Invoice Date", format(new Date(invoice.createdAt), "MMMM d, yyyy")],
     ["Status", invoice.paymentStatus],
     ...(invoice.paidAt
-      ? [
-          [
-            "Payment Date",
-            format(new Date(invoice.paidAt), "MMMM d, yyyy"),
-          ] as [string, string],
-        ]
+      ? ([
+          ["Payment Date", format(new Date(invoice.paidAt), "MMMM d, yyyy")],
+        ] as [string, string][])
       : []),
     ...(invoice.appointment
-      ? [
+      ? ([
           [
             "Appointment",
-            `${appointmentTypeLabels[invoice.appointment.type] ?? invoice.appointment.type} — ${format(new Date(invoice.appointment.scheduledAt), "MMM d, yyyy")}`,
-          ] as [string, string],
+            `${
+              appointmentTypeLabels[invoice.appointment.type] ??
+              invoice.appointment.type
+            } — ${format(
+              new Date(invoice.appointment.scheduledAt),
+              "MMM d, yyyy",
+            )}`,
+          ],
           ...(invoice.appointment.doctor?.staffProfile
-            ? [
+            ? ([
                 [
                   "Attending Doctor",
                   `Dr. ${invoice.appointment.doctor.staffProfile.firstName} ${invoice.appointment.doctor.staffProfile.lastName}`,
-                ] as [string, string],
-              ]
+                ],
+              ] as [string, string][])
             : []),
-        ]
+        ] as [string, string][])
       : []),
   ];
 
@@ -254,23 +281,21 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.mid);
     doc.text(label, detailsX + 2, detailsY);
-
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...COLORS.dark);
     doc.text(value, W - 14, detailsY, { align: "right" });
     detailsY += 5.5;
   });
 
-  // Push y past both columns
   y = Math.max(y, detailsY) + 10;
 
-  // ── DIVIDER ───────────────────────────────────────────────────────────────
+  // ── DIVIDER ───────────────────────────────────────────────────────────
   doc.setDrawColor(...COLORS.muted);
   doc.setLineWidth(0.3);
   doc.line(14, y, W - 14, y);
   y += 8;
 
-  // ── ITEMS TABLE ───────────────────────────────────────────────────────────
+  // ── ITEMS TABLE ───────────────────────────────────────────────────────
   const items = invoice.items as InvoiceItem[];
 
   autoTable(doc, {
@@ -290,11 +315,15 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
       { content: item.description },
       { content: String(item.quantity), styles: { halign: "center" } },
       {
-        content: `₦${item.unitPrice.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+        content: `₦${item.unitPrice.toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+        })}`,
         styles: { halign: "right" },
       },
       {
-        content: `₦${item.amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+        content: `₦${item.amount.toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+        })}`,
         styles: { halign: "right", fontStyle: "bold" },
       },
     ]),
@@ -310,9 +339,7 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
       textColor: COLORS.dark,
       cellPadding: { top: 4, bottom: 4, left: 4, right: 4 },
     },
-    alternateRowStyles: {
-      fillColor: COLORS.background,
-    },
+    alternateRowStyles: { fillColor: COLORS.background },
     columnStyles: {
       0: { cellWidth: 10 },
       3: { cellWidth: 35 },
@@ -326,40 +353,40 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
     (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
       .finalY + 6;
 
-  // ── TOTALS BLOCK ──────────────────────────────────────────────────────────
+  // ── TOTALS BLOCK ──────────────────────────────────────────────────────
   const totalsX = W - 14 - 75;
 
-  // Background
   fillRect(totalsX, y, 75, 24, COLORS.background);
   doc.setDrawColor(...COLORS.muted);
   doc.setLineWidth(0.2);
   doc.rect(totalsX, y, 75, 24);
 
-  // Subtotal row
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...COLORS.mid);
   doc.text("Subtotal:", totalsX + 4, y + 7);
   doc.setTextColor(...COLORS.dark);
   doc.text(
-    `₦${invoice.totalAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+    `₦${invoice.totalAmount.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+    })}`,
     W - 18,
     y + 7,
     { align: "right" },
   );
 
-  // Divider inside totals
   doc.setDrawColor(...COLORS.muted);
   doc.line(totalsX + 4, y + 10, W - 18, y + 10);
 
-  // Total row with highlight
   fillRect(totalsX, y + 11, 75, 13, COLORS.primary);
   doc.setFontSize(10.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...COLORS.white);
   doc.text("TOTAL DUE:", totalsX + 4, y + 19.5);
   doc.text(
-    `₦${invoice.totalAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`,
+    `₦${invoice.totalAmount.toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+    })}`,
     W - 18,
     y + 19.5,
     { align: "right" },
@@ -367,7 +394,7 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
 
   y += 30;
 
-  // ── NOTES ─────────────────────────────────────────────────────────────────
+  // ── NOTES ─────────────────────────────────────────────────────────────
   if (invoice.notes) {
     y += 4;
     fillRect(14, y, W - 28, 5.5, COLORS.muted);
@@ -385,40 +412,36 @@ function generateInvoicePDF(invoice: InvoicePDFData): void {
     y += noteLines.length * 5 + 6;
   }
 
-  // ── PAYMENT STATUS BANNER ─────────────────────────────────────────────────
+  // ── PAID WATERMARK ────────────────────────────────────────────────────
   if (invoice.paymentStatus === "PAID") {
-    // Simulate watermark with a very light green color (no GState needed)
-    doc.setTextColor(200, 240, 220); // light mint — visible but non-intrusive
+    doc.setTextColor(200, 240, 220);
     doc.setFontSize(80);
     doc.setFont("helvetica", "bold");
-    doc.text("PAID", W / 2, H / 2 + 20, {
-      align: "center",
-      angle: 35,
-    });
-    // Reset text color
+    doc.text("PAID", W / 2, H / 2 + 20, { align: "center", angle: 35 });
     doc.setTextColor(...COLORS.dark);
   }
 
-  // ── FOOTER ────────────────────────────────────────────────────────────────
-  fillRect(0, H - 20, W, 20, COLORS.dark);
+  // ── FOOTER ────────────────────────────────────────────────────────────
+  fillRect(0, H - 22, W, 22, COLORS.dark);
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.white);
+  doc.text(`${HOSPITAL_NAME} — ${HOSPITAL_ADDRESS}`, W / 2, H - 14, {
+    align: "center",
+  });
+
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...COLORS.light);
   doc.text(
-    "Thank you for choosing SPRMS Healthcare. For queries, contact billing@sprms.hospital.ng",
+    `Generated on ${format(new Date(), "MMMM d, yyyy 'at' HH:mm")} · SPRMS`,
     W / 2,
-    H - 12,
-    { align: "center" },
-  );
-  doc.text(
-    `Generated on ${format(new Date(), "MMMM d, yyyy 'at' HH:mm")}`,
-    W / 2,
-    H - 7,
+    H - 8,
     { align: "center" },
   );
 
-  // ── SAVE ──────────────────────────────────────────────────────────────────
+  // ── SAVE ──────────────────────────────────────────────────────────────
   doc.save(`${invoice.invoiceNumber}.pdf`);
 }
 
@@ -433,9 +456,8 @@ export function InvoicePDFButton({
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      // Small delay so UI updates before heavy PDF work
       await new Promise((r) => setTimeout(r, 100));
-      generateInvoicePDF(invoice);
+      await generateInvoicePDF(invoice); // now awaited
     } finally {
       setIsGenerating(false);
     }

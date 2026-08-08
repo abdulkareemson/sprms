@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Loader2,
   Save,
@@ -29,6 +30,7 @@ import {
 } from "@/schemas/auth.schema";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 
 // ─── Role badge color ─────────────────────────────────────────────────────────
 
@@ -72,7 +74,9 @@ function ProfileRow({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  // FIX: destructure `update` from useSession to refresh JWT in-place
+  const { data: session, update } = useSession();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCurrent, setShowCurrent] = useState(false);
@@ -104,6 +108,22 @@ export default function SettingsPage() {
       if (response.ok) {
         toast.success("Password changed successfully!");
         reset();
+
+        // FIX 1: Update the JWT session in memory so mustChangePassword
+        // becomes false immediately — without requiring a full re-login.
+        // NextAuth's update() patches the token and re-runs the jwt callback.
+        await update({ mustChangePassword: false });
+
+        // FIX 2: If this was a forced password change (staff first login),
+        // redirect to dashboard now that the requirement is satisfied.
+        if (session?.user?.mustChangePassword) {
+          toast.info("Redirecting to your dashboard...");
+          // Small delay so user sees the success toast
+          setTimeout(() => {
+            router.push("/dashboard");
+            router.refresh();
+          }, 1200);
+        }
       } else {
         setError(result.error ?? "Failed to change password");
       }
@@ -149,12 +169,38 @@ export default function SettingsPage() {
             Profile Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-2 pb-1">
+        <CardContent className="pt-5 pb-1">
+          {/* Avatar + name block */}
+          <div className="flex items-center gap-4 pb-5 mb-2 border-b border-slate-100">
+            <UserAvatar
+              name={session?.user?.name ?? "User"}
+              size="lg"
+              useImage
+            />
+            <div className="min-w-0">
+              <p className="text-base font-bold text-slate-800 truncate">
+                {session?.user?.name ?? "—"}
+              </p>
+              <p className="text-xs text-slate-400 truncate mt-0.5">
+                {session?.user?.email ?? "—"}
+              </p>
+              <span
+                className={cn(
+                  "inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border mt-1.5",
+                  roleBadge,
+                )}
+              >
+                {role.replace("_", " ")}
+              </span>
+            </div>
+          </div>
+
           <ProfileRow
             icon={User}
             label="Full Name"
             value={session?.user?.name ?? "—"}
           />
+
           <ProfileRow
             icon={Mail}
             label="Email Address"

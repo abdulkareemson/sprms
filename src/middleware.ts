@@ -20,18 +20,9 @@ const ADMIN_ONLY_ROUTES = ["/staff", "/audit-logs"];
 // Routes restricted to specific roles
 // FIX: Added /patients, /records, /my-records with correct role lists
 const ROUTE_PERMISSIONS: Record<string, Role[]> = {
-  "/patients": [
-    Role.ADMIN,
-    Role.DOCTOR,
-    Role.NURSE,
-    Role.RECEPTIONIST,
-  ],
+  "/patients": [Role.ADMIN, Role.DOCTOR, Role.NURSE, Role.RECEPTIONIST],
   "/pharmacy": [Role.ADMIN, Role.PHARMACIST],
-  "/billing": [
-    Role.ADMIN,
-    Role.RECEPTIONIST,
-    Role.PATIENT,
-  ],
+  "/billing": [Role.ADMIN, Role.RECEPTIONIST, Role.PATIENT],
   "/reports": [Role.ADMIN, Role.DOCTOR],
   "/my-records": [Role.PATIENT],
 };
@@ -126,6 +117,16 @@ export default auth(function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.svg|public/).*)",
+    /*
+     * Match all request paths EXCEPT:
+     * 1. _next/static  — Next.js static assets
+     * 2. _next/image   — Next.js image optimization
+     * 3. favicon.ico   — Browser favicon
+     * 4. public files  — All static files in /public:
+     *      *.png, *.jpg, *.jpeg, *.gif, *.webp,
+     *      *.svg, *.ico, *.woff, *.woff2
+     * 5. /images/*     — Your image folder
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff|woff2)).*)",
   ],
 };

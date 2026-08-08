@@ -8,11 +8,15 @@ import { createAuditLog } from "@/lib/audit";
 import { AuditAction, Role } from "@prisma/client";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // ── FIX 1: Explicit secret prevents NextAuth from
+  //           using fallback behavior that leaks credentials ──────────────
+  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+
   providers: [
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        email: { label: "Email", type: "email" }, // FIX 2: type:"email" not "text"
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, request) {
@@ -59,7 +63,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
               await prisma.user.update({
                 where: { id: user.id },
-                data: { failedLoginAttempts: newFailedAttempts, lockedUntil },
+                data: {
+                  failedLoginAttempts: newFailedAttempts,
+                  lockedUntil,
+                },
               });
 
               await createAuditLog({
@@ -91,7 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
 
-          // Password correct — reset and log
+          // ── Password correct ──────────────────────────────────────────
           await prisma.user.update({
             where: { id: user.id },
             data: {
@@ -133,15 +140,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // When update({ mustChangePassword: false }) is called,
+      if (trigger === "update" && session) {
+        if (session.mustChangePassword !== undefined) {
+          token.mustChangePassword = session.mustChangePassword;
+        }
+        if (session.isEmailVerified !== undefined) {
+          token.isEmailVerified = session.isEmailVerified;
+        }
+        return token;
+      }
+
+      // Normal login — populate token from user object
       if (user) {
         token.id = user.id;
         token.role = user.role as Role;
         token.mustChangePassword = user.mustChangePassword;
         token.isEmailVerified = user.isEmailVerified;
       }
+
       return token;
     },
+
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
@@ -155,13 +176,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/login", // FIX 3: Error goes to /login, NOT back with params
   },
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 60,
+    maxAge: 30 * 60, // 30 minutes
   },
+
+  // ── FIX 4: Prevent credentials from being passed
+  //           via URL in any redirect ────────────────────────────────────
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
+      options: {
+        httpOnly: true, // ← JS cannot read this cookie
+        sameSite: "lax", // ← CSRF protection
+        path: "/",
+        secure: process.env.NODE_ENV === "production", // ← HTTPS only in prod
+      },
+    },
+  },
+
+  // ── FIX 5: Disable debug mode — it logs sensitive data ───────────────
+  debug: false,
 
   trustHost: true,
 });

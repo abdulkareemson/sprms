@@ -19,9 +19,20 @@ export const metadata: Metadata = {
     template: "%s | SPRMS",
   },
   description:
-    "A secure web-based platform for efficient storage, retrieval, and management of Electronic Health Records at Ahmadu Bello University, Zaria.",
-  keywords: ["EHR", "patient records", "healthcare", "ABU Zaria", "SPRMS"],
-  authors: [{ name: "ABU Zaria Computer Science" }],
+    "Secure Patient Record Management System (SPRMS) — A case study of Muslim Specialist Hospital, Zaria. Final Year Project, Ahmadu Bello University, Zaria.",
+  keywords: [
+    "EHR",
+    "electronic health records",
+    "patient records",
+    "healthcare",
+    "ABU Zaria",
+    "SPRMS",
+    "Muslim Specialist Hospital",
+    "Zaria",
+    "Kaduna",
+    "Nigeria",
+  ],
+  authors: [{ name: "Ahmadu Bello University, Zaria — Computer Science" }],
 };
 
 export default function RootLayout({

@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { format, differenceInYears } from "date-fns";
 import { usePermission } from "@/hooks/usePermission";
 import Link from "next/link";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 
 interface PatientProfile {
   id: string;
@@ -220,10 +221,11 @@ export default function PatientProfilePage() {
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-700 text-2xl font-bold flex-shrink-0">
-              {patient.firstName[0]}
-              {patient.lastName[0]}
-            </div>
+            <UserAvatar
+              name={`${patient.firstName} ${patient.lastName}`}
+              size="lg"
+              useImage
+            />
             <div className="flex-1">
               <div className="flex items-start justify-between flex-wrap gap-2">
                 <div>
