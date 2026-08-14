@@ -2,12 +2,10 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
-  },
+  // FIXED: Moved from experimental.serverComponentsExternalPackages
+  // This is the correct key for Next.js 14.2+
+  serverExternalPackages: ["@prisma/client", "bcryptjs", "nodemailer"],
 
-  // FIX: Tell webpack these Node.js modules should never be 
-  // bundled for Edge Runtime — eliminates the bcryptjs warnings
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -15,6 +13,9 @@ const nextConfig = {
         crypto: false,
         stream: false,
         fs: false,
+        net: false,
+        tls: false,
+        dns: false,
       };
     }
     return config;
@@ -61,7 +62,10 @@ const nextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=()",
           },
-          { key: "Content-Security-Policy", value: cspDirectives },
+          {
+            key: "Content-Security-Policy",
+            value: cspDirectives,
+          },
           { key: "X-DNS-Prefetch-Control", value: "on" },
           ...(process.env.NODE_ENV === "production"
             ? [
