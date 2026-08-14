@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -19,9 +19,9 @@ import { Button } from "@/components/ui/button";
 
 type VerifyState = "loading" | "success" | "error" | "no-token";
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Inner Component (uses useSearchParams) ───────────────────────────────────
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -119,7 +119,6 @@ export default function VerifyEmailPage() {
           You can now log in to access your patient portal.
         </p>
 
-        {/* Auto-redirect notice */}
         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 mb-5">
           <p className="text-xs text-emerald-700">
             Redirecting to login in{" "}
@@ -156,7 +155,6 @@ export default function VerifyEmailPage() {
         </p>
 
         <div className="space-y-3">
-          {/* Retry with same token */}
           {token && (
             <Button
               variant="outline"
@@ -182,7 +180,7 @@ export default function VerifyEmailPage() {
     );
   }
 
-  // ── No token state (accessed /verify-email directly) ───────────────────────
+  // ── No token state ──────────────────────────────────────────────────────────
   return (
     <div className="text-center py-4">
       <div className="flex justify-center mb-5">
@@ -203,7 +201,6 @@ export default function VerifyEmailPage() {
         <span className="font-semibold text-slate-600">24 hours</span>.
       </p>
 
-      {/* Tips */}
       <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-5 text-left">
         <p className="text-xs font-semibold text-slate-600 mb-2">
           Didn&apos;t receive the email?
@@ -225,5 +222,30 @@ export default function VerifyEmailPage() {
         </Button>
       </Link>
     </div>
+  );
+}
+
+// ─── Fallback while Suspense loads ────────────────────────────────────────────
+
+function VerifyEmailFallback() {
+  return (
+    <div className="text-center py-4">
+      <div className="flex justify-center mb-5">
+        <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+        </div>
+      </div>
+      <h2 className="text-xl font-semibold text-slate-800 mb-2">Loading...</h2>
+    </div>
+  );
+}
+
+// ─── Page Export (wraps content in Suspense) ──────────────────────────────────
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<VerifyEmailFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
