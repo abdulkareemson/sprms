@@ -26,7 +26,6 @@ export interface StaffWithProfile {
   email: string;
   role: Role;
   isActive: boolean;
-  isEmailVerified: boolean;
   mustChangePassword: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;

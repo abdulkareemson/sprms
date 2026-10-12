@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         role: data.role as Role,
         isActive: true,
-        isEmailVerified: true,
         mustChangePassword: true,
         staffProfile: {
           create: {

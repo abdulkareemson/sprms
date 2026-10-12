@@ -124,12 +124,14 @@ interface AppointmentCardProps {
   showPatient?: boolean;
   showDoctor?: boolean;
   canManage?: boolean;
+  isDoctor?: boolean;
   onStatusChange?: (
     id: string,
     status: AppointmentStatus,
     reason?: string,
-  ) => void;
+  ) => void | Promise<void>;
   onEdit?: (appointment: Appointment) => void;
+  onReschedule?: (appointment: Appointment) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -138,8 +140,10 @@ export function AppointmentCard({
   showPatient = true,
   showDoctor = true,
   canManage = false,
+  isDoctor = false,
   onStatusChange,
   onEdit,
+  onReschedule,
 }: AppointmentCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -200,13 +204,13 @@ export function AppointmentCard({
           </div>
 
           {/* Actions */}
-          {canManage && (
+          {canManage && !isDoctor && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className="h-8 w-8 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0"
                   disabled={isUpdating}
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -221,6 +225,13 @@ export function AppointmentCard({
                     <DropdownMenuSeparator />
                   </>
                 )}
+                {onReschedule &&
+                  (appointment.status === "SCHEDULED" ||
+                    appointment.status === "CONFIRMED") && (
+                    <DropdownMenuItem onClick={() => onReschedule(appointment)}>
+                      <Calendar className="mr-2 h-4 w-4" /> Reschedule
+                    </DropdownMenuItem>
+                  )}
                 {canTransitionTo("CONFIRMED") && (
                   <DropdownMenuItem
                     onClick={() => handleStatusChange("CONFIRMED")}
@@ -270,6 +281,94 @@ export function AppointmentCard({
             </DropdownMenu>
           )}
         </div>
+
+        {isDoctor && canManage && onStatusChange && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3 mb-3">
+            {appointment.status === "SCHEDULED" && (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusChange("CONFIRMED")}
+                >
+                  <CheckCircle className="mr-1.5 h-4 w-4" />
+                  Accept request
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                  disabled={isUpdating}
+                  onClick={() => handleStatusChange("CANCELLED")}
+                >
+                  <XCircle className="mr-1.5 h-4 w-4" />
+                  Reject request
+                </Button>
+              </>
+            )}
+            {appointment.status === "CONFIRMED" && (
+              <Button
+                size="sm"
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange("IN_PROGRESS")}
+              >
+                <PlayCircle className="mr-1.5 h-4 w-4" />
+                Start visit
+              </Button>
+            )}
+            {appointment.status === "IN_PROGRESS" && (
+              <Button
+                size="sm"
+                className="bg-slate-700 text-white hover:bg-slate-800"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange("COMPLETED")}
+              >
+                <CheckCircle className="mr-1.5 h-4 w-4" />
+                Complete visit
+              </Button>
+            )}
+            {isPastAppt && canTransitionTo("NO_SHOW") && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange("NO_SHOW")}
+              >
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                Mark no-show
+              </Button>
+            )}
+            {onReschedule &&
+              (appointment.status === "SCHEDULED" ||
+                appointment.status === "CONFIRMED") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isUpdating}
+                  onClick={() => onReschedule(appointment)}
+                >
+                  <Calendar className="mr-1.5 h-4 w-4" />
+                  Reschedule
+                </Button>
+              )}
+            {(appointment.status === "CONFIRMED" ||
+              appointment.status === "IN_PROGRESS") && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-700 hover:bg-red-50 hover:text-red-800"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange("CANCELLED")}
+              >
+                <XCircle className="mr-1.5 h-4 w-4" />
+                Cancel
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* ── Date / Time ─────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-4 mb-3">

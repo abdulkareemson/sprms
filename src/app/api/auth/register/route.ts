@@ -3,11 +3,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { registerPatientSchema } from "@/schemas/auth.schema";
-import { sendEmailVerificationEmail } from "@/lib/email";
 import { createAuditLog, getIpAddress } from "@/lib/audit";
 import { AuditAction, Gender, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import {
   checkRateLimit,
   getIdentifier,
@@ -50,14 +48,13 @@ export async function POST(request: NextRequest) {
     // FIX: Use generatePatientNumber() — atomic, no race condition
     const patientNumber = await generatePatientNumber();
 
-    const { user, patient } = await prisma.$transaction(async (tx) => {
+    const { userId, patient } = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: data.email,
           password: hashedPassword,
           role: Role.PATIENT,
           isActive: true,
-          isEmailVerified: false,
           mustChangePassword: false,
         },
       });
@@ -75,25 +72,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { user, patient };
+      return { userId: user.id, patient };
     });
-
-    // Create email verification token
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await prisma.emailVerification.create({
-      data: { userId: user.id, token, expiresAt },
-    });
-
-    await sendEmailVerificationEmail(
-      data.email,
-      `${data.firstName} ${data.lastName}`,
-      token,
-    );
 
     await createAuditLog({
-      userId: user.id,
+      userId,
       action: AuditAction.CREATE,
       resource: "Patient",
       resourceId: patient.id,
@@ -103,8 +86,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message:
-          "Account created successfully. Please check your email to verify your account.",
+        message: "Account created successfully. You can now log in.",
         patientNumber,
       },
       { status: 201 },

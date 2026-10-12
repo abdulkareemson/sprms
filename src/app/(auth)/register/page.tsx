@@ -53,8 +53,7 @@ export default function RegisterPage() {
 
       if (response.ok) {
         setSuccess(
-          `Account created! Your Patient Number is ${result.patientNumber}. 
-           Please check your email to verify your account.`,
+          `Account created! Your Patient Number is ${result.patientNumber}. You can now log in.`,
         );
       } else {
         setError(result.error ?? "Registration failed. Please try again.");
@@ -75,7 +74,7 @@ export default function RegisterPage() {
         </h2>
         <p className="text-slate-500 text-sm mb-6">{success}</p>
         <Link href="/login">
-          <Button className="w-full bg-blue-700 hover:bg-blue-800">
+          <Button className="w-full bg-blue-700 hover:bg-blue-800 text-white">
             Go to Login
           </Button>
         </Link>
@@ -235,7 +234,7 @@ export default function RegisterPage() {
 
         <Button
           type="submit"
-          className="w-full bg-blue-700 hover:bg-blue-800"
+          className="w-full bg-blue-700 hover:bg-blue-800 text-white"
           disabled={isLoading}
         >
           {isLoading ? (

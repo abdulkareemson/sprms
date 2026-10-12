@@ -186,7 +186,7 @@ export default function LoginPage() {
             "bg-gradient-to-r from-blue-600 to-blue-700",
             "hover:from-blue-700 hover:to-blue-800",
             "shadow-md shadow-blue-200",
-            "transition-all duration-200",
+            "transition-all duration-200 text-white",
           )}
           disabled={isLoading}
         >

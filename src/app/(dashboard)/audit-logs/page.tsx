@@ -33,7 +33,6 @@ import {
   Upload,
   Key,
   Lock,
-  Mail,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
@@ -140,12 +139,6 @@ const ACTION_CONFIG: Record<
     color: "text-red-700",
     bg: "bg-red-100",
     label: "Locked",
-  },
-  EMAIL_VERIFIED: {
-    icon: Mail,
-    color: "text-blue-700",
-    bg: "bg-blue-100",
-    label: "Email Verified",
   },
 };
 

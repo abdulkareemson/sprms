@@ -15,7 +15,6 @@ import {
   Mail,
   Shield,
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -223,25 +222,6 @@ export default function SettingsPage() {
                 {role.replace("_", " ")}
               </span>
             </div>
-          </div>
-
-          {/* Email verification status */}
-          <div className="flex items-center gap-2 py-3 border-t border-slate-50">
-            {session?.user?.isEmailVerified ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span className="text-xs text-emerald-700 font-medium">
-                  Email verified
-                </span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <span className="text-xs text-amber-700 font-medium">
-                  Email not verified
-                </span>
-              </>
-            )}
           </div>
         </CardContent>
       </Card>

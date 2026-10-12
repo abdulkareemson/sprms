@@ -5,8 +5,59 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const demoRoles = [
+  "ADMIN",
+  "PATIENT",
+  "DOCTOR",
+  "NURSE",
+  "PHARMACIST",
+  "RECEPTIONIST",
+] as const;
+
+type DemoRole = (typeof demoRoles)[number];
+
+function readDemoPasswords(): Record<DemoRole, string> {
+  const passwords = {
+    ADMIN: process.env.SPRMS_SEED_ADMIN_PASSWORD ?? "",
+    PATIENT: process.env.SPRMS_SEED_PATIENT_PASSWORD ?? "",
+    DOCTOR: process.env.SPRMS_SEED_DOCTOR_PASSWORD ?? "",
+    NURSE: process.env.SPRMS_SEED_NURSE_PASSWORD ?? "",
+    PHARMACIST: process.env.SPRMS_SEED_PHARMACIST_PASSWORD ?? "",
+    RECEPTIONIST: process.env.SPRMS_SEED_RECEPTIONIST_PASSWORD ?? "",
+  } satisfies Record<DemoRole, string>;
+
+  const invalidRoles = demoRoles.filter((role) => {
+    const password = passwords[role];
+    return (
+      password.length < 8 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/[0-9]/.test(password) ||
+      !/[^A-Za-z0-9]/.test(password)
+    );
+  });
+
+  if (invalidRoles.length) {
+    throw new Error(
+      `Set a strong password for each demo role before seeding: ${invalidRoles.join(", ")}`,
+    );
+  }
+
+  return passwords;
+}
+
 async function main() {
   console.log("🌱 Seeding database...");
+
+  const demoPasswords = readDemoPasswords();
+  const passwordHashes = Object.fromEntries(
+    await Promise.all(
+      demoRoles.map(async (role) => [
+        role,
+        await bcrypt.hash(demoPasswords[role], 12),
+      ]),
+    ),
+  ) as Record<DemoRole, string>;
 
   // ─── Clean existing data ───────────────────────────────────────────────────
   await prisma.auditLog.deleteMany();
@@ -17,21 +68,17 @@ async function main() {
   await prisma.vitalSign.deleteMany();
   await prisma.medicalRecord.deleteMany();
   await prisma.patient.deleteMany();
-  await prisma.emailVerification.deleteMany();
   await prisma.passwordReset.deleteMany();
   await prisma.staffProfile.deleteMany();
   await prisma.user.deleteMany();
-
-  const passwordHash = await bcrypt.hash("Password@123", 12);
 
   // ─── 1. ADMIN ─────────────────────────────────────────────────────────────
   await prisma.user.create({
     data: {
       email: "admin@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.ADMIN,
       role: "ADMIN",
       isActive: true,
-      isEmailVerified: true,
       mustChangePassword: false,
       staffProfile: {
         create: {
@@ -47,11 +94,10 @@ async function main() {
   const doctor = await prisma.user.create({
     data: {
       email: "doctor@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.DOCTOR,
       role: "DOCTOR",
       isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
       staffProfile: {
         create: {
           firstName: "Aminu",
@@ -68,11 +114,10 @@ async function main() {
   await prisma.user.create({
     data: {
       email: "nurse@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.NURSE,
       role: "NURSE",
       isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
       staffProfile: {
         create: {
           firstName: "Fatima",
@@ -88,11 +133,10 @@ async function main() {
   const receptionist = await prisma.user.create({
     data: {
       email: "reception@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.RECEPTIONIST,
       role: "RECEPTIONIST",
       isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
       staffProfile: {
         create: {
           firstName: "Hauwa",
@@ -107,11 +151,10 @@ async function main() {
   await prisma.user.create({
     data: {
       email: "pharmacy@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.PHARMACIST,
       role: "PHARMACIST",
       isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
       staffProfile: {
         create: {
           firstName: "Yusuf",
@@ -128,10 +171,9 @@ async function main() {
   const patientUser = await prisma.user.create({
     data: {
       email: "patient@sprms.com",
-      password: passwordHash,
+      password: passwordHashes.PATIENT,
       role: "PATIENT",
       isActive: true,
-      isEmailVerified: true,
       mustChangePassword: false,
     },
   });
@@ -227,19 +269,16 @@ async function main() {
   console.log("✅ Seeding complete!");
   console.log("\n📋 Test Accounts:");
   console.log("─────────────────────────────────────────");
-  console.log("ADMIN        : admin@sprms.com       / Password@123");
-  console.log("DOCTOR       : doctor@sprms.com      / Password@123");
-  console.log("NURSE        : nurse@sprms.com       / Password@123");
-  console.log("RECEPTIONIST : reception@sprms.com   / Password@123");
-  console.log("PHARMACIST   : pharmacy@sprms.com    / Password@123");
-  console.log("PATIENT      : patient@sprms.com     / Password@123");
+  console.log(
+    "Demo passwords were read from SPRMS_SEED_<ROLE>_PASSWORD variables.",
+  );
   console.log("─────────────────────────────────────────");
 }
 
 main()
   .catch((e) => {
     console.error("❌ Seed failed:", e);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

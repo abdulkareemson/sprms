@@ -5,10 +5,15 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
-import { sendAppointmentCancellation } from "@/lib/email";
+import {
+  sendAppointmentCancellation,
+  sendAppointmentConfirmation,
+  sendAppointmentRescheduled,
+} from "@/lib/email";
 import {
   updateAppointmentSchema,
   cancelAppointmentSchema,
+  type AppointmentStatus,
 } from "@/schemas/appointment.schema";
 import { Role } from "@prisma/client";
 import {
@@ -19,6 +24,15 @@ import {
 } from "@/lib/rate-limit";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
+  SCHEDULED: ["CONFIRMED", "CANCELLED", "NO_SHOW"],
+  CONFIRMED: ["IN_PROGRESS", "CANCELLED", "NO_SHOW"],
+  IN_PROGRESS: ["COMPLETED", "CANCELLED"],
+  COMPLETED: [],
+  CANCELLED: [],
+  NO_SHOW: [],
+};
 
 // ── GET /api/appointments/[id] ────────────────────────────────────────────────
 export async function GET(_req: NextRequest, { params }: RouteParams) {
@@ -84,6 +98,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       if (!patient || appointment.patientId !== patient.id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
+    } else if (
+      session.user.role === Role.DOCTOR &&
+      appointment.doctorId !== session.user.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json({ appointment });
@@ -107,6 +126,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (!hasPermission(session.user.role as Role, "manage_appointments")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (session.user.role === Role.PATIENT) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -157,6 +179,34 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    if (
+      session.user.role === Role.DOCTOR &&
+      existing.doctorId !== session.user.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (
+      result.data.status &&
+      !STATUS_TRANSITIONS[existing.status].includes(result.data.status)
+    ) {
+      return NextResponse.json(
+        {
+          error: `Cannot change appointment status from ${existing.status.toLowerCase()} to ${result.data.status.toLowerCase()}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (result.data.status === "NO_SHOW" && existing.endTime > new Date()) {
+      return NextResponse.json(
+        {
+          error: "An appointment can only be marked no-show after it has ended",
+        },
+        { status: 400 },
+      );
+    }
+
     if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
       return NextResponse.json(
         {
@@ -174,16 +224,54 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       ...rest
     } = result.data;
 
-    // ── Recompute times if date/time changed ──────────────────────────────────
+    // ── Recompute times if date, time, or duration changed ────────────────────
     let newScheduledAt: Date | undefined;
     let newEndTime: Date | undefined;
 
-    if (appointmentDate && startTime) {
-      const [hours, minutes] = startTime.split(":").map(Number);
-      newScheduledAt = new Date(appointmentDate);
-      newScheduledAt.setHours(hours, minutes, 0, 0);
+    const isRescheduling =
+      appointmentDate !== undefined ||
+      startTime !== undefined ||
+      duration !== undefined;
+
+    if (isRescheduling) {
+      if (existing.status !== "SCHEDULED" && existing.status !== "CONFIRMED") {
+        return NextResponse.json(
+          {
+            error:
+              "Only scheduled or confirmed appointments can be rescheduled",
+          },
+          { status: 400 },
+        );
+      }
+
+      if ((appointmentDate && !startTime) || (!appointmentDate && startTime)) {
+        return NextResponse.json(
+          {
+            error: "Provide both appointment date and start time to reschedule",
+          },
+          { status: 400 },
+        );
+      }
+
+      const [hours, minutes] = startTime
+        ? startTime.split(":").map(Number)
+        : [existing.scheduledAt.getHours(), existing.scheduledAt.getMinutes()];
+      if (appointmentDate) {
+        const [year, month, day] = appointmentDate.split("-").map(Number);
+        newScheduledAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      } else {
+        newScheduledAt = new Date(existing.scheduledAt);
+        newScheduledAt.setHours(hours, minutes, 0, 0);
+      }
       const dur = duration ?? existing.durationMinutes;
       newEndTime = new Date(newScheduledAt.getTime() + dur * 60 * 1000);
+
+      if (newScheduledAt < new Date()) {
+        return NextResponse.json(
+          { error: "Cannot reschedule an appointment in the past" },
+          { status: 400 },
+        );
+      }
 
       // Conflict detection (exclude self)
       const conflict = await prisma.appointment.findFirst({
@@ -227,7 +315,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     if (newScheduledAt) updateData.scheduledAt = newScheduledAt;
     if (newEndTime) updateData.endTime = newEndTime;
-    if (duration) updateData.durationMinutes = duration;
+    if (isRescheduling) {
+      updateData.durationMinutes = duration ?? existing.durationMinutes;
+    }
 
     const updated = await prisma.appointment.update({
       where: { id },
@@ -269,12 +359,66 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       ipAddress: req.headers.get("x-forwarded-for") ?? "unknown",
     });
 
+    const doctorName = existing.doctor.staffProfile
+      ? `${existing.doctor.staffProfile.firstName} ${existing.doctor.staffProfile.lastName}`
+      : existing.doctor.email;
+
+    if (
+      result.data.status === "CONFIRMED" &&
+      existing.status !== "CONFIRMED" &&
+      existing.patient.email
+    ) {
+      sendAppointmentConfirmation({
+        patientName: `${existing.patient.firstName} ${existing.patient.lastName}`,
+        patientEmail: existing.patient.email,
+        doctorName,
+        appointmentDate: updated.scheduledAt.toLocaleDateString("en-NG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        appointmentTime: updated.scheduledAt.toLocaleTimeString("en-NG", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        reason: existing.reason ?? "Appointment",
+      }).catch(console.error);
+    }
+
+    if (isRescheduling && existing.patient.email) {
+      sendAppointmentRescheduled({
+        patientName: `${existing.patient.firstName} ${existing.patient.lastName}`,
+        patientEmail: existing.patient.email,
+        doctorName,
+        previousDate: existing.scheduledAt.toLocaleDateString("en-NG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        previousTime: existing.scheduledAt.toLocaleTimeString("en-NG", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        appointmentDate: updated.scheduledAt.toLocaleDateString("en-NG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        appointmentTime: updated.scheduledAt.toLocaleTimeString("en-NG", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      }).catch(console.error);
+    }
+
     // Send cancellation email
     if (isCancellation && existing.patient.email) {
-      const doctorName = existing.doctor.staffProfile
-        ? `${existing.doctor.staffProfile.firstName} ${existing.doctor.staffProfile.lastName}`
-        : existing.doctor.email;
-
       sendAppointmentCancellation({
         patientName: `${existing.patient.firstName} ${existing.patient.lastName}`,
         patientEmail: existing.patient.email,

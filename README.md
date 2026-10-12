@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Demo Account Passwords
+
+Set the demo role passwords in `.env.local` before running the seed or rotating existing demo accounts. For this demo project, the same password may be used for every role. Each password must contain at least 8 characters, uppercase and lowercase letters, a number, and a special character.
+
+```env
+SPRMS_SEED_ADMIN_PASSWORD=
+SPRMS_SEED_PATIENT_PASSWORD=
+SPRMS_SEED_DOCTOR_PASSWORD=
+SPRMS_SEED_NURSE_PASSWORD=
+SPRMS_SEED_PHARMACIST_PASSWORD=
+SPRMS_SEED_RECEPTIONIST_PASSWORD=
+```
+
+To update the six existing demo accounts without deleting application data, run `npm run db:rotate-demo-passwords`. Running `npx prisma db seed` still clears and recreates the database contents.

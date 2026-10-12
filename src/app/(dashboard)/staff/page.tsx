@@ -71,7 +71,6 @@ interface StaffMember {
   email: string;
   role: string;
   isActive: boolean;
-  isEmailVerified: boolean;
   mustChangePassword: boolean;
   createdAt: string;
   staffProfile: {
@@ -689,12 +688,6 @@ function ViewStaffDialog({
 
           {/* Flags */}
           <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
-            {member.isEmailVerified && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
-                <BadgeCheck className="h-3 w-3" />
-                Email Verified
-              </span>
-            )}
             {member.mustChangePassword && (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
                 <AlertCircle className="h-3 w-3" />

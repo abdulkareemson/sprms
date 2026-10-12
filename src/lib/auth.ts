@@ -127,7 +127,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name,
             role: user.role,
             mustChangePassword: user.mustChangePassword,
-            isEmailVerified: user.isEmailVerified,
           };
         } catch (error) {
           if (error instanceof Error) {
@@ -146,9 +145,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.mustChangePassword !== undefined) {
           token.mustChangePassword = session.mustChangePassword;
         }
-        if (session.isEmailVerified !== undefined) {
-          token.isEmailVerified = session.isEmailVerified;
-        }
         return token;
       }
 
@@ -157,7 +153,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = user.role as Role;
         token.mustChangePassword = user.mustChangePassword;
-        token.isEmailVerified = user.isEmailVerified;
       }
 
       return token;
@@ -168,7 +163,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
         session.user.mustChangePassword = token.mustChangePassword as boolean;
-        session.user.isEmailVerified = token.isEmailVerified as boolean;
       }
       return session;
     },

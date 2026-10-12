@@ -81,6 +81,7 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [isPatientUser, setIsPatientUser] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isConflict, setIsConflict] = useState(false);
@@ -117,14 +118,29 @@ export function AppointmentForm({
     const load = async () => {
       setIsLoadingOptions(true);
       try {
-        const [pRes, dRes] = await Promise.all([
-          fetch("/api/patients?limit=200"),
-          fetch("/api/staff?role=DOCTOR&limit=50"),
+        const [meRes, dRes] = await Promise.all([
+          fetch("/api/patients/me"),
+          fetch("/api/doctors"),
         ]);
-        const pData = await pRes.json();
+        const meData = await meRes.json();
         const dData = await dRes.json();
-        setPatients(pData.patients ?? []);
-        setDoctors(dData.staff ?? []);
+        if (!meRes.ok || !dRes.ok) throw new Error();
+
+        setDoctors(dData.doctors ?? []);
+        if (meData.isPatient) {
+          setIsPatientUser(true);
+          if (meData.patient) {
+            setPatients([meData.patient]);
+            setValue("patientId", meData.patient.id, { shouldValidate: true });
+          } else {
+            setSubmitError("No patient profile is linked to this account.");
+          }
+        } else {
+          const pRes = await fetch("/api/patients?limit=100");
+          const pData = await pRes.json();
+          if (!pRes.ok) throw new Error();
+          setPatients(pData.patients ?? []);
+        }
       } catch {
         setSubmitError("Failed to load form options. Please refresh.");
       } finally {
@@ -132,7 +148,7 @@ export function AppointmentForm({
       }
     };
     load();
-  }, []);
+  }, [setValue]);
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (data: CreateAppointmentInput) => {
@@ -188,34 +204,52 @@ export function AppointmentForm({
 
       {/* Patient + Doctor */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-            <User className="h-3.5 w-3.5 text-blue-500" />
-            Patient <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={watchedPatient}
-            onValueChange={(val) => setValue("patientId", val)}
-            disabled={!!defaultPatientId}
-          >
-            <SelectTrigger className={errors.patientId ? "border-red-400" : ""}>
-              <SelectValue placeholder="Select patient..." />
-            </SelectTrigger>
-            <SelectContent>
-              {patients.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.firstName} {p.lastName}
-                  <span className="text-slate-400 ml-1 text-xs">
-                    ({p.patientNumber})
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.patientId && (
-            <p className="text-xs text-red-500">{errors.patientId.message}</p>
-          )}
-        </div>
+        {!isPatientUser && (
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+              <User className="h-3.5 w-3.5 text-blue-500" />
+              Patient <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={watchedPatient}
+              onValueChange={(val) => setValue("patientId", val)}
+              disabled={!!defaultPatientId}
+            >
+              <SelectTrigger
+                className={errors.patientId ? "border-red-400" : ""}
+              >
+                <SelectValue placeholder="Select patient..." />
+              </SelectTrigger>
+              <SelectContent>
+                {patients.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.firstName} {p.lastName}
+                    <span className="text-slate-400 ml-1 text-xs">
+                      ({p.patientNumber})
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.patientId && (
+              <p className="text-xs text-red-500">{errors.patientId.message}</p>
+            )}
+          </div>
+        )}
+
+        {isPatientUser && (
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+              <User className="h-3.5 w-3.5 text-blue-500" />
+              Patient
+            </Label>
+            <div className="min-h-10 flex items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
+              {patients[0]
+                ? `${patients[0].firstName} ${patients[0].lastName} (${patients[0].patientNumber})`
+                : "Your patient profile"}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-700">

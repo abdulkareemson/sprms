@@ -219,49 +219,6 @@ export async function sendStaffWelcomeEmail(
 }
 
 /**
- * Email verification for self-registered patients
- */
-export async function sendEmailVerificationEmail(
-  to: string,
-  name: string,
-  token: string,
-): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const verifyUrl = `${appUrl}/verify-email?token=${token}`;
-
-  const html = baseTemplate(`
-    <h2 style="color:#1e293b;margin:0 0 16px;">
-      Verify Your Email Address
-    </h2>
-    <p style="color:#475569;margin:0 0 16px;">
-      Hello ${name}, thank you for registering with
-      <strong>${HOSPITAL_NAME}</strong>.
-      Please verify your email address to activate your account.
-    </p>
-
-    <div style="text-align:center;margin:32px 0;">
-      <a href="${verifyUrl}"
-        style="display:inline-block;background:#059669;color:#ffffff;
-               padding:14px 32px;border-radius:6px;text-decoration:none;
-               font-weight:bold;font-size:15px;">
-        ✓ Verify Email Address
-      </a>
-    </div>
-
-    <p style="color:#94a3b8;font-size:12px;margin:0;">
-      This link expires in 24 hours.
-      If you did not create this account, please ignore this email.
-    </p>
-  `);
-
-  await sendEmail({
-    to,
-    subject: `${HOSPITAL_NAME} — Please Verify Your Email Address`,
-    html,
-  });
-}
-
-/**
  * Password reset email
  */
 export async function sendPasswordResetEmail(
@@ -423,6 +380,36 @@ export async function sendAppointmentConfirmation(data: {
     data.appointmentTime,
     data.reason,
   );
+}
+
+export async function sendAppointmentRescheduled(data: {
+  patientName: string;
+  patientEmail: string;
+  doctorName: string;
+  previousDate: string;
+  previousTime: string;
+  appointmentDate: string;
+  appointmentTime: string;
+}): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="color:#1e293b;margin:0 0 16px;">Appointment Rescheduled</h2>
+    <p style="color:#475569;margin:0 0 16px;">
+      Hello ${data.patientName}, your appointment with Dr. ${data.doctorName}
+      has been moved to a new time.
+    </p>
+    <p style="color:#475569;margin:0 0 8px;">
+      Previous: <strong>${data.previousDate} at ${data.previousTime}</strong>
+    </p>
+    <p style="color:#475569;margin:0;">
+      New time: <strong>${data.appointmentDate} at ${data.appointmentTime}</strong>
+    </p>
+  `);
+
+  await sendEmail({
+    to: data.patientEmail,
+    subject: `${HOSPITAL_NAME} — Appointment Rescheduled`,
+    html,
+  });
 }
 
 /**

@@ -11,7 +11,6 @@ const PUBLIC_ROUTES = [
   "/register",
   "/forgot-password",
   "/reset-password",
-  "/verify-email",
 ];
 
 // Routes restricted to ADMIN only
@@ -35,7 +34,6 @@ export default auth(function middleware(request: NextRequest) {
         user?: {
           role: Role;
           mustChangePassword?: boolean;
-          isEmailVerified?: boolean;
         };
       } | null;
     }
@@ -75,16 +73,6 @@ export default auth(function middleware(request: NextRequest) {
     !pathname.startsWith("/api/")
   ) {
     return NextResponse.redirect(new URL("/settings", request.url));
-  }
-
-  // ── Force email verification for patients ─────────────────────────────────
-  if (
-    role === Role.PATIENT &&
-    !user.isEmailVerified &&
-    pathname !== "/verify-email" &&
-    !pathname.startsWith("/api/")
-  ) {
-    return NextResponse.redirect(new URL("/verify-email", request.url));
   }
 
   // ── Admin-only routes ─────────────────────────────────────────────────────

@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission } from "@/lib/rbac";
 import { createAuditLog } from "@/lib/audit";
-import { sendAppointmentConfirmation } from "@/lib/email";
 import {
   createAppointmentSchema,
   appointmentQuerySchema,
@@ -61,8 +60,8 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {};
 
-    // Patients can only see their own appointments
-    if (session.user.role === "PATIENT") {
+    // Patients and doctors can only see appointments assigned to their account.
+    if (session.user.role === Role.PATIENT) {
       const patient = await prisma.patient.findFirst({
         where: { userId: session.user.id },
         select: { id: true },
@@ -71,6 +70,8 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ appointments: [], total: 0, page, limit });
       }
       where.patientId = patient.id;
+    } else if (session.user.role === Role.DOCTOR) {
+      where.doctorId = session.user.id;
     } else {
       if (patientId) where.patientId = patientId;
       if (doctorId) where.doctorId = doctorId;
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      patientId,
+      patientId: submittedPatientId,
       doctorId,
       appointmentDate,
       startTime,
@@ -179,13 +180,17 @@ export async function POST(req: NextRequest) {
     } = result.data;
 
     // ── Verify patient ────────────────────────────────────────────────────────
-    const patient = await prisma.patient.findUnique({
-      where: { id: patientId },
+    const patient = await prisma.patient.findFirst({
+      where:
+        session.user.role === Role.PATIENT
+          ? { userId: session.user.id }
+          : { id: submittedPatientId },
       select: { id: true, firstName: true, lastName: true, email: true },
     });
     if (!patient) {
       return NextResponse.json({ error: "Patient not found" }, { status: 404 });
     }
+    const patientId = patient.id;
 
     // ── Verify doctor ─────────────────────────────────────────────────────────
     const doctor = await prisma.user.findFirst({
@@ -210,9 +215,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Build start / end DateTimes ───────────────────────────────────────────
+    const [year, month, day] = appointmentDate.split("-").map(Number);
     const [hours, minutes] = startTime.split(":").map(Number);
-    const scheduledAt = new Date(appointmentDate);
-    scheduledAt.setHours(hours, minutes, 0, 0);
+    const scheduledAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
     const endTime = new Date(scheduledAt.getTime() + duration * 60 * 1000);
 
     // Prevent past booking
@@ -307,27 +312,6 @@ export async function POST(req: NextRequest) {
       description: `Appointment booked for ${patient.firstName} ${patient.lastName} with Dr. ${doctorFullName} on ${scheduledAt.toLocaleDateString()}`,
       ipAddress: req.headers.get("x-forwarded-for") ?? "unknown",
     });
-
-    // ── Email (non-blocking) ──────────────────────────────────────────────────
-    if (patient.email) {
-      sendAppointmentConfirmation({
-        patientName: `${patient.firstName} ${patient.lastName}`,
-        patientEmail: patient.email,
-        doctorName: doctorFullName,
-        appointmentDate: scheduledAt.toLocaleDateString("en-NG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-        appointmentTime: scheduledAt.toLocaleTimeString("en-NG", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        }),
-        reason,
-      }).catch(console.error);
-    }
 
     return NextResponse.json(
       { message: "Appointment booked successfully", appointment },

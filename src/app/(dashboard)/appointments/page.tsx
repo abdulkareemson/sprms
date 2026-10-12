@@ -2,8 +2,10 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { format } from "date-fns";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import {
   Calendar,
   Plus,
@@ -34,6 +36,7 @@ import { AppointmentCalendar } from "@/components/appointments/AppointmentCalend
 import { AppointmentCard } from "@/components/appointments/AppointmentCard";
 import { AppointmentForm } from "@/components/appointments/AppointmentForm";
 import { CancelDialog } from "@/components/appointments/CancelDialog";
+import { RescheduleDialog } from "@/components/appointments/RescheduleDialog";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useAppStore } from "@/store/appStore";
 import { usePermission } from "@/hooks/usePermission";
@@ -67,10 +70,14 @@ function getWeekBounds(date: Date): { from: string; to: string } {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AppointmentsPage() {
+  const { data: session } = useSession();
   const { calendarView, setCalendarView, selectedDate, setSelectedDate } =
     useAppStore();
   const { hasPermission } = usePermission();
   const canManage = hasPermission("manage_appointments");
+  const isDoctor = session?.user?.role === "DOCTOR";
+  const isPatient = session?.user?.role === "PATIENT";
+  const canActOnAppointments = canManage && !isPatient;
 
   const [displayMode, setDisplayMode] = useState<"calendar" | "list">(
     "calendar",
@@ -79,9 +86,19 @@ export default function AppointmentsPage() {
   const [cancelDialog, setCancelDialog] = useState<{
     open: boolean;
     appointment?: Appointment;
-  }>({ open: false });
+    intent: "cancel" | "reject";
+  }>({ open: false, intent: "cancel" });
+  const [rescheduleAppointment, setRescheduleAppointment] =
+    useState<Appointment | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (isDoctor) {
+      setDisplayMode("list");
+      setStatusFilter("SCHEDULED");
+    }
+  }, [isDoctor]);
 
   // Build fetch params
   const fetchParams =
@@ -126,34 +143,63 @@ export default function AppointmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (res.ok) refetch();
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error ?? "Appointment update failed");
+      refetch();
     },
     [refetch],
   );
 
-  const openCancelDialog = (appt: Appointment) =>
-    setCancelDialog({ open: true, appointment: appt });
+  const openCancelDialog = (
+    appt: Appointment,
+    intent: "cancel" | "reject" = "cancel",
+  ) => setCancelDialog({ open: true, appointment: appt, intent });
   const handleCancelConfirm = async (reason: string) => {
     if (!cancelDialog.appointment) return;
-    await handleStatusChange(cancelDialog.appointment.id, "CANCELLED", reason);
+    const cancellationReason =
+      cancelDialog.intent === "reject"
+        ? `Rejected by doctor: ${reason}`
+        : reason;
+    await handleStatusChange(
+      cancelDialog.appointment.id,
+      "CANCELLED",
+      cancellationReason,
+    );
+    toast.success(
+      cancelDialog.intent === "reject"
+        ? "Appointment request rejected"
+        : "Appointment cancelled",
+    );
   };
 
-  const handleApptClick = (appt: Appointment) => {
+  const handleApptClick = (appointment: Appointment) => {
     if (
-      canManage &&
-      appt.status !== "COMPLETED" &&
-      appt.status !== "CANCELLED"
+      canActOnAppointments &&
+      (appointment.status === "SCHEDULED" || appointment.status === "CONFIRMED")
     ) {
-      openCancelDialog(appt);
+      setRescheduleAppointment(appointment);
+      return;
     }
+    setDisplayMode("list");
   };
+
+  const roleDescription = isDoctor
+    ? "Review appointment requests, confirm visits, and manage your schedule."
+    : isPatient
+      ? "Book appointments and follow their status."
+      : "Schedule and manage patient appointments.";
+  const bookingLabel = isPatient
+    ? "Request Appointment"
+    : isDoctor
+      ? "Schedule for Patient"
+      : "Book Appointment";
 
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
       <PageHeader
-        title="Appointments"
-        description="Schedule and manage patient appointments"
+        title={isDoctor ? "My Appointments" : "Appointments"}
+        description={roleDescription}
         action={
           canManage ? (
             <Button
@@ -161,7 +207,7 @@ export default function AppointmentsPage() {
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md shadow-blue-200 gap-2"
             >
               <Plus className="h-4 w-4" />
-              Book Appointment
+              {bookingLabel}
             </Button>
           ) : undefined
         }
@@ -190,7 +236,9 @@ export default function AppointmentsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                <SelectItem value="SCHEDULED">
+                  {isDoctor ? "Awaiting confirmation" : "Scheduled"}
+                </SelectItem>
                 <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                 <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -267,13 +315,17 @@ export default function AppointmentsPage() {
             ) : filtered.length === 0 ? (
               <EmptyState
                 icon={Calendar}
-                title="No appointments found"
+                title={
+                  isDoctor && statusFilter === "SCHEDULED"
+                    ? "No appointment requests"
+                    : "No appointments found"
+                }
                 description={
                   searchQuery
                     ? "No appointments match your search."
                     : "No appointments scheduled yet."
                 }
-                actionLabel={canManage ? "Book Appointment" : undefined}
+                actionLabel={canManage ? bookingLabel : undefined}
                 onAction={
                   canManage ? () => setShowBookingDialog(true) : undefined
                 }
@@ -299,11 +351,36 @@ export default function AppointmentsPage() {
                     appointment={appt}
                     showPatient
                     showDoctor
-                    canManage={canManage}
-                    onStatusChange={(id, status) => {
-                      if (status === "CANCELLED") openCancelDialog(appt);
-                      else handleStatusChange(id, status);
+                    canManage={canActOnAppointments}
+                    isDoctor={isDoctor}
+                    onStatusChange={async (id, status) => {
+                      if (status === "CANCELLED") {
+                        openCancelDialog(
+                          appt,
+                          isDoctor && appt.status === "SCHEDULED"
+                            ? "reject"
+                            : "cancel",
+                        );
+                      } else {
+                        try {
+                          await handleStatusChange(id, status);
+                          toast.success(
+                            `Appointment marked ${status.toLowerCase().replaceAll("_", " ")}`,
+                          );
+                        } catch (error) {
+                          toast.error(
+                            error instanceof Error
+                              ? error.message
+                              : "Appointment update failed",
+                          );
+                        }
+                      }
                     }}
+                    onReschedule={
+                      canActOnAppointments
+                        ? setRescheduleAppointment
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -320,9 +397,7 @@ export default function AppointmentsPage() {
               <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md shadow-blue-200">
                 <Calendar className="h-5 w-5 text-white" />
               </div>
-              <DialogTitle className="text-xl">
-                Book New Appointment
-              </DialogTitle>
+              <DialogTitle className="text-xl">{bookingLabel}</DialogTitle>
             </div>
           </DialogHeader>
           <AppointmentForm
@@ -339,13 +414,29 @@ export default function AppointmentsPage() {
       {/* Cancel Dialog */}
       <CancelDialog
         open={cancelDialog.open}
-        onOpenChange={(open) => setCancelDialog({ open })}
+        intent={cancelDialog.intent}
+        onOpenChange={(open) =>
+          setCancelDialog((current) => ({ ...current, open }))
+        }
         appointmentInfo={
           cancelDialog.appointment
             ? `${cancelDialog.appointment.patient.firstName} ${cancelDialog.appointment.patient.lastName} — ${format(new Date(cancelDialog.appointment.scheduledAt), "MMM d, yyyy h:mm a")}`
             : undefined
         }
         onConfirm={handleCancelConfirm}
+      />
+
+      <RescheduleDialog
+        appointment={rescheduleAppointment}
+        open={rescheduleAppointment !== null}
+        onOpenChange={(open) => {
+          if (!open) setRescheduleAppointment(null);
+        }}
+        onSuccess={() => {
+          setRescheduleAppointment(null);
+          refetch();
+          toast.success("Appointment rescheduled");
+        }}
       />
     </div>
   );

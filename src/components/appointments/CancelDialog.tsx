@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 
 interface CancelDialogProps {
   open: boolean;
+  intent?: "cancel" | "reject";
   onOpenChange: (open: boolean) => void;
   onConfirm: (reason: string) => Promise<void>;
   appointmentInfo?: string;
@@ -25,6 +26,7 @@ interface CancelDialogProps {
 
 export function CancelDialog({
   open,
+  intent = "cancel",
   onOpenChange,
   onConfirm,
   appointmentInfo,
@@ -44,8 +46,12 @@ export function CancelDialog({
       await onConfirm(reason.trim());
       setReason("");
       onOpenChange(false);
-    } catch {
-      setError("Failed to cancel appointment. Please try again.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Failed to update appointment. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -59,19 +65,24 @@ export function CancelDialog({
             <div className="p-2.5 bg-red-100 rounded-full">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
-            <DialogTitle className="text-lg">Cancel Appointment</DialogTitle>
+            <DialogTitle className="text-lg">
+              {intent === "reject"
+                ? "Reject Appointment Request"
+                : "Cancel Appointment"}
+            </DialogTitle>
           </div>
           <DialogDescription>
             {appointmentInfo
-              ? `You are about to cancel: ${appointmentInfo}`
-              : "You are about to cancel this appointment."}{" "}
-            A cancellation email will be sent to the patient.
+              ? `You are about to ${intent === "reject" ? "reject the request for" : "cancel"}: ${appointmentInfo}`
+              : `You are about to ${intent === "reject" ? "reject this appointment request" : "cancel this appointment"}.`}{" "}
+            The patient will be notified by email if an address is available.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 py-2">
           <Label className="text-sm font-medium text-slate-700">
-            Cancellation Reason <span className="text-red-500">*</span>
+            {intent === "reject" ? "Rejection Reason" : "Cancellation Reason"}{" "}
+            <span className="text-red-500">*</span>
           </Label>
           <Textarea
             value={reason}
@@ -79,7 +90,11 @@ export function CancelDialog({
               setReason(e.target.value);
               if (error) setError("");
             }}
-            placeholder="Please provide a reason for cancellation..."
+            placeholder={
+              intent === "reject"
+                ? "Why are you rejecting this appointment request?"
+                : "Please provide a reason for cancellation..."
+            }
             className={`resize-none ${error ? "border-red-400" : ""}`}
             rows={3}
             disabled={isLoading}
@@ -100,7 +115,7 @@ export function CancelDialog({
             }}
             disabled={isLoading}
           >
-            Keep Appointment
+            {intent === "reject" ? "Keep Request" : "Keep Appointment"}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -110,8 +125,10 @@ export function CancelDialog({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Cancelling...
+                {intent === "reject" ? "Rejecting..." : "Cancelling..."}
               </>
+            ) : intent === "reject" ? (
+              "Reject Request"
             ) : (
               "Confirm Cancellation"
             )}

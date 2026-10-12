@@ -22,8 +22,6 @@
 │   │   │   │   └── page.tsx
 │   │   │   ├── reset-password
 │   │   │   │   └── page.tsx
-│   │   │   ├── verify-email
-│   │   │   │   └── page.tsx
 │   │   │   └── layout.tsx
 │   │   ├── (dashboard)
 │   │   │   ├── appointments
@@ -79,7 +77,6 @@
 │   │   │   │   │   └── route.ts
 │   │   │   │   ├── reset-password
 │   │   │   │   │   └── route.ts
-│   │   │   │   └── verify-email
 │   │   │   │       └── route.ts
 │   │   │   ├── dashboard
 │   │   │   │   └── stats

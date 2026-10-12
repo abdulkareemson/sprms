@@ -15,7 +15,6 @@ import {
   Download,
   Key,
   Lock,
-  Mail,
   AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,7 +59,6 @@ const ACTION_CONFIG: Record<
   EXPORT: { icon: Download, color: "text-teal-600", bg: "bg-teal-50" },
   PASSWORD_RESET: { icon: Key, color: "text-orange-600", bg: "bg-orange-50" },
   ACCOUNT_LOCKED: { icon: Lock, color: "text-red-600", bg: "bg-red-50" },
-  EMAIL_VERIFIED: { icon: Mail, color: "text-blue-600", bg: "bg-blue-50" },
 };
 
 // ─── User display name ────────────────────────────────────────────────────────
@@ -113,8 +111,7 @@ export function RecentActivity({
         ) : (
           <div className="space-y-0.5">
             {displayLogs.map((log, i) => {
-              const config =
-                ACTION_CONFIG[log.action] ?? ACTION_CONFIG.READ;
+              const config = ACTION_CONFIG[log.action] ?? ACTION_CONFIG.READ;
               const Icon = config.icon;
               const displayName = getUserDisplayName(log);
               const isLast = i === displayLogs.length - 1;
@@ -123,9 +120,7 @@ export function RecentActivity({
                 <div
                   key={log.id}
                   className={`flex items-start gap-3 py-2.5 ${
-                    !isLast
-                      ? "border-b border-slate-50"
-                      : ""
+                    !isLast ? "border-b border-slate-50" : ""
                   }`}
                 >
                   <div
