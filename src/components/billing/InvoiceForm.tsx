@@ -31,25 +31,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -63,7 +55,6 @@ import {
   createInvoiceSchema,
   type CreateInvoiceInput,
 } from "@/schemas/invoice.schema";
-import { useDebounce } from "@/hooks/useDebounce";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -302,20 +293,17 @@ export function InvoiceForm() {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [patientSearch, setPatientSearch] = useState("");
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(
     null,
   );
-  const [patientOpen, setPatientOpen] = useState(false);
-  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(true);
+  const [patientLoadError, setPatientLoadError] = useState<string | null>(null);
 
   const [appointments, setAppointments] = useState<AppointmentOption[]>([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
 
   const [presetOpen, setPresetOpen] = useState(false);
-
-  const debouncedSearch = useDebounce(patientSearch, 350);
 
   // ── Form setup ─────────────────────────────────────────────────────────────
   const form = useForm<CreateInvoiceInput>({
@@ -340,30 +328,29 @@ export function InvoiceForm() {
     0,
   );
 
-  // ── Search patients ────────────────────────────────────────────────────────
-  const searchPatients = useCallback(async (query: string) => {
-    setIsLoadingPatients(true);
-    try {
-      const params = new URLSearchParams({ limit: "8" });
-      if (query) params.set("search", query);
-
-      const res = await fetch(`/api/patients?${params.toString()}`);
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
-      setPatients(data.patients ?? []);
-    } catch {
-      setPatients([]);
-    } finally {
-      setIsLoadingPatients(false);
-    }
-  }, []);
-
+  // ── Load patients for the selector ────────────────────────────────────────
   useEffect(() => {
-    if (patientOpen) {
-      searchPatients(debouncedSearch);
-    }
-  }, [debouncedSearch, patientOpen, searchPatients]);
+    const loadPatients = async () => {
+      setIsLoadingPatients(true);
+      try {
+        const res = await fetch("/api/patients?limit=100");
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error ?? "Failed to load patients");
+        }
+        setPatients(data.patients ?? []);
+      } catch (error) {
+        setPatients([]);
+        setPatientLoadError(
+          error instanceof Error ? error.message : "Failed to load patients",
+        );
+      } finally {
+        setIsLoadingPatients(false);
+      }
+    };
+
+    void loadPatients();
+  }, []);
 
   // ── Fetch appointments for selected patient ────────────────────────────────
   const fetchPatientAppointments = useCallback(async (patientId: string) => {
@@ -388,15 +375,7 @@ export function InvoiceForm() {
     setSelectedPatient(patient);
     form.setValue("patientId", patient.id, { shouldValidate: true });
     form.setValue("appointmentId", null);
-    setPatientOpen(false);
     fetchPatientAppointments(patient.id);
-  };
-
-  const handleClearPatient = () => {
-    setSelectedPatient(null);
-    form.setValue("patientId", "");
-    form.setValue("appointmentId", null);
-    setAppointments([]);
   };
 
   // ── Add preset item ────────────────────────────────────────────────────────
@@ -456,130 +435,63 @@ export function InvoiceForm() {
                   Patient
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Search and select the patient for this invoice
+                  Select the patient for this invoice
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Patient combobox */}
+                {/* Patient dropdown */}
                 <FormField
                   control={form.control}
                   name="patientId"
-                  render={() => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm">
                         Select Patient{" "}
                         <span className="text-destructive">*</span>
                       </FormLabel>
                       <FormControl>
-                        <div>
-                          {selectedPatient ? (
-                            /* Selected patient chip */
-                            <div className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                                  {selectedPatient.firstName[0]}
-                                  {selectedPatient.lastName[0]}
-                                </span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-foreground">
-                                  {selectedPatient.firstName}{" "}
-                                  {selectedPatient.lastName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {selectedPatient.patientNumber}
-                                  {selectedPatient.phone &&
-                                    ` • ${selectedPatient.phone}`}
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                                onClick={handleClearPatient}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Popover
-                              open={patientOpen}
-                              onOpenChange={setPatientOpen}
-                            >
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  className="w-full justify-between h-10 text-sm font-normal"
-                                >
-                                  <span className="text-muted-foreground flex items-center gap-2">
-                                    <Search className="h-4 w-4" />
-                                    Search patient by name or ID...
-                                  </span>
-                                  <ChevronDown className="h-4 w-4 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-[400px] p-0"
-                                align="start"
-                              >
-                                <Command shouldFilter={false}>
-                                  <CommandInput
-                                    placeholder="Type name or patient number..."
-                                    value={patientSearch}
-                                    onValueChange={setPatientSearch}
-                                  />
-                                  <CommandList>
-                                    {isLoadingPatients ? (
-                                      <div className="flex items-center justify-center py-6">
-                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                      </div>
-                                    ) : patients.length === 0 ? (
-                                      <CommandEmpty>
-                                        No patients found
-                                      </CommandEmpty>
-                                    ) : (
-                                      <CommandGroup heading="Patients">
-                                        {patients.map((patient) => (
-                                          <CommandItem
-                                            key={patient.id}
-                                            value={patient.id}
-                                            onSelect={() =>
-                                              handleSelectPatient(patient)
-                                            }
-                                            className="cursor-pointer py-2.5"
-                                          >
-                                            <div className="flex items-center gap-3">
-                                              <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                                                  {patient.firstName[0]}
-                                                  {patient.lastName[0]}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                <p className="font-medium text-sm">
-                                                  {patient.firstName}{" "}
-                                                  {patient.lastName}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                  {patient.patientNumber}
-                                                  {patient.phone &&
-                                                    ` • ${patient.phone}`}
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    )}
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
+                        <Select
+                          value={field.value}
+                          onValueChange={(patientId) => {
+                            const patient = patients.find(
+                              (option) => option.id === patientId,
+                            );
+                            if (patient) handleSelectPatient(patient);
+                          }}
+                          disabled={
+                            isLoadingPatients ||
+                            !!patientLoadError ||
+                            patients.length === 0
+                          }
+                        >
+                          <SelectTrigger className="h-10 text-sm">
+                            <SelectValue
+                              placeholder={
+                                isLoadingPatients
+                                  ? "Loading patients..."
+                                  : patientLoadError
+                                    ? "Unable to load patients"
+                                    : patients.length === 0
+                                      ? "No patients found"
+                                      : "Select patient..."
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {patients.map((patient) => (
+                              <SelectItem key={patient.id} value={patient.id}>
+                                {patient.firstName} {patient.lastName} (
+                                {patient.patientNumber})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
+                      {patientLoadError && (
+                        <p className="text-sm text-destructive">
+                          {patientLoadError}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
